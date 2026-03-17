@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Probes (downloaded from HF)
+probes/
+
+# Results
+results/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Misc
+*.log
+.DS_Store
+text.txt
