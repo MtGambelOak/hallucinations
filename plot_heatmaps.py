@@ -25,9 +25,10 @@ DATASETS = {
     "TruthfulQA": "results/truthfulqa_armorm.json",
     "TriviaQA":   "results/triviaqa_armorm.json",
     "LongFact":   "results/longfact_armorm.json",
-    "HelpSteer2": "results/helpsteer2_armorm.json",
+    "HelpSteer2":    "results/helpsteer2_armorm.json",
+    "UltraFeedback": "results/ultrafeedback_armorm.json",
 }
-ORDINAL = {"HelpSteer2"}
+ORDINAL = {"HelpSteer2", "UltraFeedback"}
 
 
 def load_records(path, name):
@@ -39,7 +40,7 @@ def load_records(path, name):
     records = data.get("records")
     if not records:
         return None, None
-    label_key = "correctness" if name in ORDINAL else "label"
+    label_key = "label"
     rewards = np.array([[r["rewards"][a] for a in ATTRIBUTES] for r in records])
     labels = np.array([r[label_key] for r in records])
     return rewards, labels

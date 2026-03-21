@@ -24,14 +24,15 @@ ATTRIBUTES = [
 ]
 
 DATASETS = {
-    "TruthfulQA":  "results/truthfulqa_armorm.json",
-    "TriviaQA":    "results/triviaqa_armorm.json",
-    "LongFact":    "results/longfact_armorm.json",
-    "HelpSteer2":  "results/helpsteer2_armorm.json",
+    "TruthfulQA":    "results/truthfulqa_armorm.json",
+    "TriviaQA":      "results/triviaqa_armorm.json",
+    "LongFact":      "results/longfact_armorm.json",
+    "HelpSteer2":    "results/helpsteer2_armorm.json",
+    "UltraFeedback": "results/ultrafeedback_armorm.json",
 }
 
-# HelpSteer2 uses ordinal correctness (0-4), others use binary label
-ORDINAL_DATASETS = {"HelpSteer2"}
+# Ordinal correctness labels (not binary)
+ORDINAL_DATASETS = {"HelpSteer2", "UltraFeedback"}
 
 
 def load_data(path: str) -> dict | None:
@@ -54,7 +55,7 @@ def load_records(data: dict, dataset_name: str) -> tuple[np.ndarray, np.ndarray]
     records = data.get("records")
     if not records:
         return None
-    label_key = "correctness" if dataset_name in ORDINAL_DATASETS else "label"
+    label_key = "label"
     rewards = np.array([[r["rewards"][a] for a in ATTRIBUTES] for r in records])
     labels = np.array([r[label_key] for r in records])
     return rewards, labels
@@ -148,6 +149,7 @@ def main():
         )
 
         # Also show which dimensions correlate most with the label
+        corr_fn = spearmanr if is_ordinal else pearsonr
         print(f"\n  Correlation with label ({'correctness 0-4' if is_ordinal else 'correct/incorrect'}):")
         label_corrs = []
         for i, attr in enumerate(ATTRIBUTES):

@@ -17,3 +17,5 @@ results/
 *.log
 .DS_Store
 text.txt
+
+logs/

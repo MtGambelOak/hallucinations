@@ -23,6 +23,10 @@ RESULTS = {
         "ArmoRM":  "results/helpsteer2_armorm.json",
         "Probe":   "results/helpsteer2_probe.json",
     },
+    "UltraFeedback": {
+        "ArmoRM":  "results/ultrafeedback_armorm.json",
+        "Probe":   "results/ultrafeedback_probe.json",
+    },
 }
 
 

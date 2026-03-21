@@ -13,7 +13,7 @@ Usage:
   python eval.py --scorer probe --dataset helpsteer2
 
 NOTE: LongFact + ArmoRM scores each response once and broadcasts to its entities.
-      HelpSteer2 + Probe uses whole-response max (no entity spans available).
+      HelpSteer2/UltraFeedback + Probe uses whole-response max (no entity spans available).
 """
 
 import argparse
@@ -44,7 +44,9 @@ ATTRIBUTES = [
 
 PROBE_REPO_ID = "obalcells/hallucination-probes"
 
-DEFAULT_SPLITS   = {"truthfulqa": "validation", "triviaqa": "test", "longfact": "test", "helpsteer2": "validation"}
+ORDINAL_DATASETS = {"helpsteer2", "ultrafeedback"}
+
+DEFAULT_SPLITS   = {"truthfulqa": "validation", "triviaqa": "test", "longfact": "test", "helpsteer2": "validation", "ultrafeedback": "train"}
 DEFAULT_SUBSETS  = {"triviaqa": "Meta-Llama-3.1-8B-Instruct", "longfact": "gemma-2-9b-it"}
 DEFAULT_MODEL_ID = {"armorm": "RLHFlow/ArmoRM-Llama3-8B-v0.1", "probe": "google/gemma-2-9b-it"}
 
@@ -104,20 +106,40 @@ def load_helpsteer2(split, subset=None):
     return [{"prompt": r["prompt"], "response": r["response"], "correctness": r["correctness"]} for r in ds]
 
 
+def load_ultrafeedback(split, subset=None):
+    ds = hf_load("openbmb/UltraFeedback", split=split)
+    items = []
+    for row in ds:
+        prompt = row["instruction"]
+        for completion in row["completions"]:
+            try:
+                rating = completion["annotations"]["truthfulness"]["Rating"]
+                correctness = int(rating)
+            except (KeyError, TypeError, ValueError):
+                continue  # skip N/A or missing ratings
+            items.append({
+                "prompt":      prompt,
+                "response":    completion["response"],
+                "correctness": correctness,
+            })
+    return items
+
+
 LOADERS = {
-    "truthfulqa": load_truthfulqa,
-    "triviaqa":   load_triviaqa,
-    "longfact":   load_longfact,
-    "helpsteer2": load_helpsteer2,
+    "truthfulqa":    load_truthfulqa,
+    "triviaqa":      load_triviaqa,
+    "longfact":      load_longfact,
+    "helpsteer2":    load_helpsteer2,
+    "ultrafeedback": load_ultrafeedback,
 }
 
 
 # ── AUROC ──────────────────────────────────────────────────────────────────────
 
 def compute_auroc(scores, labels, dataset):
-    if dataset == "helpsteer2":
+    if dataset in ORDINAL_DATASETS:
         per_thresh = {}
-        for t in range(1, 5):
+        for t in range(int(labels.min()) + 1, int(labels.max()) + 1):
             binary = (labels >= t).astype(int)
             if 0 < binary.sum() < len(binary):
                 per_thresh[f">={t}"] = float(roc_auc_score(binary, scores))
@@ -171,10 +193,11 @@ def dim_aurocs(rewards_all, labels, dataset):
     out = {}
     for i, attr in enumerate(ATTRIBUTES):
         dim = rewards_all[:, i]
-        if dataset == "helpsteer2":
+        if dataset in ORDINAL_DATASETS:
             vals = [
                 roc_auc_score((labels >= t).astype(int), dim)
-                for t in range(1, 5) if 0 < (labels >= t).sum() < len(labels)
+                for t in range(int(labels.min()) + 1, int(labels.max()) + 1)
+                if 0 < (labels >= t).sum() < len(labels)
             ]
             out[attr] = float(np.mean(vals)) if vals else None
         else:
