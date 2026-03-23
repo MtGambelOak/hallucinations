@@ -8,24 +8,54 @@ from pathlib import Path
 
 RESULTS = {
     "TruthfulQA": {
-        "ArmoRM":  "results/truthfulqa_armorm.json",
-        "Probe":   "results/truthfulqa_probe.json",
+        "ArmoRM":                      "results/truthfulqa_armorm.json",
+        "Probe Gemma2-9b (linear)":    "results/truthfulqa_probe_gemma2_9b_linear.json",
+        "Probe Gemma2-9b (LoRA KL)":   "results/truthfulqa_probe_gemma2_9b_lora_kl.json",
+        "Probe Llama3.1-8b (linear)":  "results/truthfulqa_probe_llama3_1_8b_linear.json",
+        "Probe Llama3.1-8b (LoRA KL)": "results/truthfulqa_probe_llama3_1_8b_lora_kl.json",
+        "Probe Llama3.1-8b (LoRA LM)": "results/truthfulqa_probe_llama3_1_8b_lora_lm.json",
+        "Probe Qwen2.5-7b (linear)":   "results/truthfulqa_probe_qwen2_5_7b_linear.json",
+        "Probe Qwen2.5-7b (LoRA KL)":  "results/truthfulqa_probe_qwen2_5_7b_lora_kl.json",
     },
     "TriviaQA": {
-        "ArmoRM":  "results/triviaqa_armorm.json",
-        "Probe":   "results/triviaqa_probe.json",
+        "ArmoRM":                      "results/triviaqa_armorm.json",
+        "Probe Gemma2-9b (linear)":    "results/triviaqa_probe_gemma2_9b_linear.json",
+        "Probe Gemma2-9b (LoRA KL)":   "results/triviaqa_probe_gemma2_9b_lora_kl.json",
+        "Probe Llama3.1-8b (linear)":  "results/triviaqa_probe_llama3_1_8b_linear.json",
+        "Probe Llama3.1-8b (LoRA KL)": "results/triviaqa_probe_llama3_1_8b_lora_kl.json",
+        "Probe Llama3.1-8b (LoRA LM)": "results/triviaqa_probe_llama3_1_8b_lora_lm.json",
+        "Probe Qwen2.5-7b (linear)":   "results/triviaqa_probe_qwen2_5_7b_linear.json",
+        "Probe Qwen2.5-7b (LoRA KL)":  "results/triviaqa_probe_qwen2_5_7b_lora_kl.json",
     },
     "LongFact": {
-        "ArmoRM":  "results/longfact_armorm.json",
-        "Probe":   "results/longfact_probe.json",
+        "ArmoRM":                      "results/longfact_armorm.json",
+        "Probe Gemma2-9b (linear)":    "results/longfact_probe_gemma2_9b_linear.json",
+        "Probe Gemma2-9b (LoRA KL)":   "results/longfact_probe_gemma2_9b_lora_kl.json",
+        "Probe Llama3.1-8b (linear)":  "results/longfact_probe_llama3_1_8b_linear.json",
+        "Probe Llama3.1-8b (LoRA KL)": "results/longfact_probe_llama3_1_8b_lora_kl.json",
+        "Probe Llama3.1-8b (LoRA LM)": "results/longfact_probe_llama3_1_8b_lora_lm.json",
+        "Probe Qwen2.5-7b (linear)":   "results/longfact_probe_qwen2_5_7b_linear.json",
+        "Probe Qwen2.5-7b (LoRA KL)":  "results/longfact_probe_qwen2_5_7b_lora_kl.json",
     },
     "HelpSteer2": {
-        "ArmoRM":  "results/helpsteer2_armorm.json",
-        "Probe":   "results/helpsteer2_probe.json",
+        "ArmoRM":                      "results/helpsteer2_armorm.json",
+        "Probe Gemma2-9b (linear)":    "results/helpsteer2_probe_gemma2_9b_linear.json",
+        "Probe Gemma2-9b (LoRA KL)":   "results/helpsteer2_probe_gemma2_9b_lora_kl.json",
+        "Probe Llama3.1-8b (linear)":  "results/helpsteer2_probe_llama3_1_8b_linear.json",
+        "Probe Llama3.1-8b (LoRA KL)": "results/helpsteer2_probe_llama3_1_8b_lora_kl.json",
+        "Probe Llama3.1-8b (LoRA LM)": "results/helpsteer2_probe_llama3_1_8b_lora_lm.json",
+        "Probe Qwen2.5-7b (linear)":   "results/helpsteer2_probe_qwen2_5_7b_linear.json",
+        "Probe Qwen2.5-7b (LoRA KL)":  "results/helpsteer2_probe_qwen2_5_7b_lora_kl.json",
     },
     "UltraFeedback": {
-        "ArmoRM":  "results/ultrafeedback_armorm.json",
-        "Probe":   "results/ultrafeedback_probe.json",
+        "ArmoRM":                      "results/ultrafeedback_armorm.json",
+        "Probe Gemma2-9b (linear)":    "results/ultrafeedback_probe_gemma2_9b_linear.json",
+        "Probe Gemma2-9b (LoRA KL)":   "results/ultrafeedback_probe_gemma2_9b_lora_kl.json",
+        "Probe Llama3.1-8b (linear)":  "results/ultrafeedback_probe_llama3_1_8b_linear.json",
+        "Probe Llama3.1-8b (LoRA KL)": "results/ultrafeedback_probe_llama3_1_8b_lora_kl.json",
+        "Probe Llama3.1-8b (LoRA LM)": "results/ultrafeedback_probe_llama3_1_8b_lora_lm.json",
+        "Probe Qwen2.5-7b (linear)":   "results/ultrafeedback_probe_qwen2_5_7b_linear.json",
+        "Probe Qwen2.5-7b (LoRA KL)":  "results/ultrafeedback_probe_qwen2_5_7b_lora_kl.json",
     },
 }
 
@@ -80,7 +110,12 @@ def main():
                 print(f"[{benchmark}] {source_name}: no results found at {path}")
                 continue
             for classifier, auroc in aurocs.items():
-                label = classifier if source_name == "ArmoRM" else f"{source_name} ({classifier})"
+                if source_name == "ArmoRM":
+                    label = classifier
+                elif len(aurocs) == 1:
+                    label = source_name
+                else:
+                    label = f"{source_name} ({classifier})"
                 rows.append((label, auroc))
 
         if not rows:
