@@ -79,9 +79,11 @@ def load_aurocs(path: str) -> dict[str, float]:
     if "auroc_per_dimension" in data:
         aurocs.update(data["auroc_per_dimension"])
     if "auroc" in data:
-        aurocs["probe"] = data["auroc"]
+        # ArmoRM files have auroc_per_dimension too; probe files have only auroc
+        key = "aggregate" if "auroc_per_dimension" in data else "probe"
+        aurocs[key] = data["auroc"]
     if "auroc_mean" in data:
-        aurocs["probe"] = data["auroc_mean"]
+        aurocs["aggregate"] = data["auroc_mean"]
     if "auroc_aggregate_mean" in data:
         aurocs["aggregate"] = data["auroc_aggregate_mean"]
     if "auroc_per_dimension_mean" in data:

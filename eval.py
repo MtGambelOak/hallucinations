@@ -281,7 +281,10 @@ def run_probe(items, dataset, llm, tokenizer, probe, probe_layer):
             scores.append(1.0 - m)
             labels.append(item["label"])
 
-        else:  # truthfulqa / helpsteer2: max over entire response
+        else:  # truthfulqa / helpsteer2 / ultrafeedback: max over entire response
+            if hal_probs.numel() == 0:
+                skipped += 1
+                continue
             scores.append(1.0 - hal_probs.max().item())
             labels.append(item.get("label", item.get("correctness")))
 
