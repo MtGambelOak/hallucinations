@@ -13,14 +13,14 @@ RLHF is the dominant approach for aligning LLMs, yet even top models hallucinate
 This project investigates two hypotheses:
 
 1. **RLHF reward models predict factuality less reliably than hallucination probes**, and their "correctness" signals are entangled with shallow features like helpfulness and fluency.
-2. **Sparse Autoencoder (SAE) features learned from reward model internals** do not isolate factuality. instead, non-factuality features dominate the directions that contribute to the model's correctness scores.
+2. **Sparse Autoencoder (SAE) features learned from reward model internals** do not isolate factuality — instead, non-factuality features dominate the directions that contribute to the model's correctness scores.
 
 We use [ArmoRM](https://arxiv.org/abs/2406.12845) (a multi-attribute reward model with 19 interpretable reward dimensions) as our primary reward model, and compare it against pretrained hallucination probes from [Obeso et al., 2025](https://arxiv.org/abs/2509.03531) across five evaluation benchmarks.
 
 ## Key Findings
 
 - **Probes outperform ArmoRM on entity-annotated factuality benchmarks** (LongFact, TriviaQA, TruthfulQA), while ArmoRM performs better on human-feedback datasets (HelpSteer2, UltraFeedback).
-- **ArmoRM's reward dimensions are highly correlated** - factuality-related dimensions (correctness, truthfulness, honesty) co-vary strongly with unrelated dimensions like helpfulness.
+- **ArmoRM's reward dimensions are highly correlated** — factuality-related dimensions (correctness, truthfulness, honesty) co-vary strongly with unrelated dimensions like helpfulness.
 - **SAE features labeled as factuality-related do not significantly contribute to ArmoRM's factuality scores** when measured by dot product with the reward head, suggesting the reward model does not cleanly separate factuality from other qualities.
 
 ## Repository Structure
@@ -30,6 +30,7 @@ We use [ArmoRM](https://arxiv.org/abs/2406.12845) (a multi-attribute reward mode
 ├── eval.py                      # Unified evaluation: ArmoRM & probes on all benchmarks
 ├── cache_rm_activations.py      # Extract ArmoRM hidden-state difference vectors
 ├── train_rm_sae.py              # Train Matryoshka Top-K SAEs on cached activations
+├── sweep_sae_sizes.py           # Train, analyze, and compare SAEs across d_sae values
 ├── analyze_sae_directions.py    # Dot products between SAE decoder and reward head
 ├── label_sae_features.py        # LLM-based contrastive labeling of SAE latents
 ├── print_sae_analysis.py        # Generate text report from SAE analysis + labels
@@ -40,6 +41,12 @@ We use [ArmoRM](https://arxiv.org/abs/2406.12845) (a multi-attribute reward mode
 │   ├── armorm1.py               # ArmoRM usage demo
 │   ├── armorm2.py               # ArmoRM usage demo (alternative)
 │   └── probe_tutorial.py        # Hallucination probe utilities (used by eval.py)
+├── setup_session.sh             # Environment variables (HF_HOME, etc.)
+├── run_all_evals.sh             # SLURM: ArmoRM + all probe evals across benchmarks
+├── cache_rm_activations.sh      # SLURM: cache difference vectors for all datasets
+├── train_rm_sae.sh              # SLURM: train SAEs on all cached datasets
+├── sweep_sae_sizes.sh           # SLURM: d_sae vocabulary size sweep
+├── label_sae_features.sh        # SLURM: auto-label SAE latents for all datasets
 ├── results/                     # Evaluation outputs (JSON + plots)
 ├── checkpoints/                 # Trained SAE checkpoints
 ├── requirements.txt
@@ -60,28 +67,35 @@ We use [ArmoRM](https://arxiv.org/abs/2406.12845) (a multi-attribute reward mode
 pip install -r requirements.txt
 ```
 
+The `demos/` directory is included in the repository and contains `probe_tutorial.py`, which `eval.py` imports for downloading pretrained hallucination probes. No additional installation is needed.
+
+### Environment
+
+The `setup_session.sh` script sets required environment variables and is sourced by all SLURM scripts:
+
+```bash
+source setup_session.sh
+```
+
+Update the paths in `setup_session.sh` to match your cluster storage.
+
 ## Pipeline
 
-The pipeline has four stages. Each stage produces artifacts consumed by later stages.
+The pipeline has four stages. Each stage produces artifacts consumed by later stages. All stages can be run via SLURM batch scripts or interactively.
 
-### Stage 1: Evaluation: ArmoRM vs. Probes
+### Stage 1: Evaluation — ArmoRM vs. Probes
 
-Run ArmoRM on a benchmark:
+Run all evaluations (ArmoRM + 7 probe variants × 5 datasets):
+
+```bash
+sbatch run_all_evals.sh
+```
+
+Or run individual evaluations interactively:
 
 ```bash
 python eval.py --scorer armorm --dataset truthfulqa
-python eval.py --scorer armorm --dataset triviaqa
-python eval.py --scorer armorm --dataset longfact
-python eval.py --scorer armorm --dataset helpsteer2
-python eval.py --scorer armorm --dataset ultrafeedback
-```
-
-Run a hallucination probe on the same benchmarks:
-
-```bash
 python eval.py --scorer probe --dataset truthfulqa --probe_id gemma2_9b_linear
-python eval.py --scorer probe --dataset triviaqa --probe_id gemma2_9b_linear
-python eval.py --scorer probe --dataset longfact --probe_id gemma2_9b_linear
 ```
 
 Additional probe variants: `gemma2_9b_lora_kl`, `llama3_1_8b_linear`, `llama3_1_8b_lora_kl`, `llama3_1_8b_lora_lm`, `qwen2_5_7b_linear`, `qwen2_5_7b_lora_kl`.
@@ -90,66 +104,64 @@ Results are saved to `results/` as JSON files containing AUROC scores, per-dimen
 
 ### Stage 2: Cache Activations & Train SAEs
 
-Cache hidden-state difference vectors from ArmoRM:
+Cache hidden-state difference vectors from ArmoRM for all datasets:
 
 ```bash
-python cache_rm_activations.py --dataset ultrafeedback
-python cache_rm_activations.py --dataset helpsteer2
-python cache_rm_activations.py --dataset helpsteer2_factuality
-python cache_rm_activations.py --dataset hh_rlhf
+sbatch cache_rm_activations.sh
 ```
 
-Train a Matryoshka SAE on the cached vectors:
+Train SAEs on the cached vectors:
 
 ```bash
-python train_rm_sae.py \
+sbatch train_rm_sae.sh
+```
+
+### Stage 3: SAE Vocabulary Size Sweep
+
+Run the full sweep (train + analyze + plot for `d_sae` ∈ {8, 16, 32, 64}) across all datasets:
+
+```bash
+sbatch sweep_sae_sizes.sh
+```
+
+Or run interactively for a single dataset:
+
+```bash
+python sweep_sae_sizes.py \
     --activations /path/to/ultrafeedback_diff.pt \
-    --d_sae 32 --k 8 \
-    --matryoshka_widths 8 16 \
-    --steps 30000 \
-    --output checkpoints/rm_sae_ultrafeedback
+    --dataset ultrafeedback \
+    --d_sae_values 8 16 32 64
 ```
 
-### Stage 3: Analyze & Label SAE Features
-
-Compute alignment between SAE latent directions and ArmoRM's 19 reward-head directions:
+To skip training and only analyze existing checkpoints:
 
 ```bash
-python analyze_sae_directions.py --sae_path checkpoints/rm_sae_ultrafeedback
+python sweep_sae_sizes.py --activations /path/to/diff.pt --dataset ultrafeedback --skip_training
 ```
 
-Auto-label SAE latents using contrastive prompting with a local LLM:
+To also run LLM auto-labeling (slow, requires Gemma-2-9b):
 
 ```bash
-python label_sae_features.py \
-    --activations /path/to/ultrafeedback_diff.pt \
-    --sae_path checkpoints/rm_sae_ultrafeedback \
-    --model_id google/gemma-2-9b-it
+python sweep_sae_sizes.py --activations /path/to/diff.pt --dataset ultrafeedback --label
 ```
 
-Generate a combined text report:
+Produces `results/sae_sweep_<dataset>.json` and `results/sae_sweep_<dataset>.png`.
+
+### Stage 4: Analyze, Label & Visualize
+
+Compute SAE–reward-head alignment and auto-label features:
 
 ```bash
+python analyze_sae_directions.py
+sbatch label_sae_features.sh
 python print_sae_analysis.py
 ```
 
-### Stage 4: Compare & Visualize
-
-Print the AUROC leaderboard across all scorers and benchmarks:
+Print the AUROC leaderboard and generate all plots:
 
 ```bash
 python compare_results.py
-```
-
-Analyze inter-dimension and inter-dataset correlations:
-
-```bash
 python compare_activations.py
-```
-
-Generate all plots:
-
-```bash
 python gen_plots.py
 ```
 
@@ -162,8 +174,8 @@ This produces `results/heatmaps.png` (reward dimension correlation heatmaps with
 | TruthfulQA | QA | Binary (correct/incorrect) | Lin et al., 2022 |
 | TriviaQA | QA | Binary (supported/unsupported) | Obeso et al., 2025 |
 | LongFact | Long-form generation | Entity-level binary | Obeso et al., 2025 |
-| HelpSteer2 | Human feedback | Ordinal correctness (0-4) | Wang et al., 2024 |
-| UltraFeedback | Human feedback | Ordinal truthfulness (1-5) | Cui et al., 2024 |
+| HelpSteer2 | Human feedback | Ordinal correctness (0–4) | Wang et al., 2024 |
+| UltraFeedback | Human feedback | Ordinal truthfulness (1–5) | Cui et al., 2024 |
 
 ## References
 
