@@ -1,0 +1,20 @@
+# Core ML
+torch>=2.1.0
+transformers>=4.40.0
+datasets>=2.19.0
+safetensors>=0.4.0
+huggingface-hub>=0.23.0
+
+# SAE training
+sae-lens>=4.0.0
+
+# Evaluation & analysis
+scikit-learn>=1.4.0
+scipy>=1.12.0
+numpy>=1.26.0
+
+# Plotting
+matplotlib>=3.8.0
+
+# Utilities
+tqdm>=4.66.0
