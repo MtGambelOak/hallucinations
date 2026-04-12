@@ -10,14 +10,14 @@
 #SBATCH -o slurmjob-%j.out-%N
 #SBATCH -e slurmjob-%j.err-%N
 
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate cs6966
-source ~/hallucinations/setup_session.sh
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 
 cd ~/hallucinations
 mkdir -p logs results checkpoints
 
-SCRATCH=/scratch/general/vast/u1110118/hallucinations
+SCRATCH=/scratch/general/vast/u1493630/hallucinations
 SWEEP_ARGS="--d_sae_values 8 16 32 64 --k 8 --steps 30000 --batch_size 512 --lr 5e-4"
 
 for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafeedback hh_rlhf; do
