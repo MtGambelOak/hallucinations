@@ -129,15 +129,19 @@ LOADERS = {
 
 
 @torch.no_grad()
-def get_hidden_state(model, tokenizer, prompt, response):
+def get_hidden_state(model, tokenizer, prompt, response, layer=-1):
     msgs = [{"role": "user", "content": prompt}, {"role": "assistant", "content": response}]
     ids = tokenizer.apply_chat_template(
         msgs, return_tensors="pt", truncation=True, max_length=4096
     )
     if not isinstance(ids, torch.Tensor):
         ids = ids["input_ids"]
-    out = model(ids.to(model.device))
-    return out.hidden_state.cpu().float().squeeze(0)  # (d_model,)
+    if layer == -1:
+        out = model(ids.to(model.device))
+        return out.hidden_state.cpu().float().squeeze(0)  # (d_model,)
+    else:
+        out = model.model(ids.to(model.device), output_hidden_states=True)
+        return out.hidden_states[layer][:, -1, :].cpu().float().squeeze(0)  # EOS token, (d_model,)
 
 
 def main():
@@ -145,10 +149,13 @@ def main():
     parser.add_argument("--dataset", default="ultrafeedback", choices=list(LOADERS.keys()))
     parser.add_argument("--output", default=None)
     parser.add_argument("--max_examples", type=int, default=None)
+    parser.add_argument("--layer", type=int, default=-1,
+                        help="Layer index to extract (-1 = final layer via out.hidden_state)")
     args = parser.parse_args()
 
     scratch = Path("/scratch/general/vast/u1110118/hallucinations")
-    output = Path(args.output or scratch / f"{args.dataset}_diff.pt")
+    layer_suffix = f"_layer{args.layer}" if args.layer != -1 else ""
+    output = Path(args.output or scratch / f"{args.dataset}{layer_suffix}_diff.pt")
     output.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Loading {args.dataset} pairs...")
@@ -182,8 +189,8 @@ def main():
     checkpoint_every = 1000
 
     for i, pair in enumerate(tqdm(pairs[start:], desc="Extracting", initial=start, total=len(pairs))):
-        h_c = get_hidden_state(model, tokenizer, pair["prompt"], pair["chosen"])
-        h_r = get_hidden_state(model, tokenizer, pair["prompt"], pair["rejected"])
+        h_c = get_hidden_state(model, tokenizer, pair["prompt"], pair["chosen"],  layer=args.layer)
+        h_r = get_hidden_state(model, tokenizer, pair["prompt"], pair["rejected"], layer=args.layer)
         diff_vecs.append(h_c - h_r)
         chosen_vecs.append(h_c)
         rejected_vecs.append(h_r)
@@ -202,6 +209,7 @@ def main():
         "chosen":   torch.stack(chosen_vecs),
         "rejected": torch.stack(rejected_vecs),
         "dataset":  args.dataset,
+        "layer":    args.layer,
         "texts":    texts,
     }
 

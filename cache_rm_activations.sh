@@ -18,19 +18,21 @@ mkdir -p logs /scratch/general/vast/u1110118/hallucinations
 
 SCRATCH=/scratch/general/vast/u1110118/hallucinations
 
-python cache_rm_activations.py --dataset helpsteer2_factuality \
-    --output $SCRATCH/helpsteer2_factuality_diff.pt
+for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafeedback hh_rlhf; do
+    # skip final layer if already cached
+    if [ ! -f "$SCRATCH/${DATASET}_diff.pt" ]; then
+        echo "Caching $DATASET (final layer)..."
+        python cache_rm_activations.py --dataset $DATASET \
+            --output $SCRATCH/${DATASET}_diff.pt
+    fi
 
-python cache_rm_activations.py --dataset helpsteer2 \
-    --output $SCRATCH/helpsteer2_diff.pt
-
-python cache_rm_activations.py --dataset ultrafeedback_factuality \
-    --output $SCRATCH/ultrafeedback_factuality_diff.pt
-
-python cache_rm_activations.py --dataset ultrafeedback \
-    --output $SCRATCH/ultrafeedback_diff.pt
-
-python cache_rm_activations.py --dataset hh_rlhf \
-    --output $SCRATCH/hh_rlhf_diff.pt
+    for LAYER in 8 16; do
+        if [ ! -f "$SCRATCH/${DATASET}_layer${LAYER}_diff.pt" ]; then
+            echo "Caching $DATASET (layer $LAYER)..."
+            python cache_rm_activations.py --dataset $DATASET --layer $LAYER \
+                --output $SCRATCH/${DATASET}_layer${LAYER}_diff.pt
+        fi
+    done
+done
 
 echo "Done."

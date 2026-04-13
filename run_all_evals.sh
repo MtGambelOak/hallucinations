@@ -89,10 +89,25 @@ python eval.py --scorer probe --dataset helpsteer2    --probe_id qwen2_5_7b_lora
 python eval.py --scorer probe --dataset ultrafeedback --max_samples 10000 --probe_id qwen2_5_7b_lora_lambda_kl_0_05 --model_id Qwen/Qwen2.5-7B-Instruct --save results/ultrafeedback_probe_qwen2_5_7b_lora_kl.json
 
 echo "========================================"
+echo "ArmoRM evals — HelpSteer2 all labels"
+echo "========================================"
+for LABEL in helpfulness coherence complexity verbosity; do
+    python eval.py --scorer armorm --dataset helpsteer2 --label $LABEL \
+        --save results/helpsteer2_armorm_${LABEL}.json
+done
+
+echo "========================================"
+echo "ArmoRM evals — UltraFeedback all labels"
+echo "========================================"
+for LABEL in helpfulness honesty instruction_following overall_score; do
+    python eval.py --scorer armorm --dataset ultrafeedback --label $LABEL --max_samples 10000 \
+        --save results/ultrafeedback_armorm_${LABEL}.json
+done
+
+echo "========================================"
 echo "Comparison"
 echo "========================================"
 python compare_results.py
-python compare_activations.py
-python plot_heatmaps.py
+python gen_plots.py
 
 echo "Done."

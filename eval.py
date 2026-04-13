@@ -101,22 +101,29 @@ def load_longfact(split, subset):
     return items
 
 
-def load_helpsteer2(split, subset=None):
+HELPSTEER2_LABELS  = ["helpfulness", "correctness", "coherence", "complexity", "verbosity"]
+ULTRAFEEDBACK_LABELS = ["helpfulness", "honesty", "instruction_following", "truthfulness", "overall_score"]
+
+
+def load_helpsteer2(split, subset=None, label="correctness"):
     ds = hf_load("nvidia/HelpSteer2", split=split)
-    return [{"prompt": r["prompt"], "response": r["response"], "correctness": r["correctness"]} for r in ds]
+    return [{"prompt": r["prompt"], "response": r["response"], "correctness": r[label]} for r in ds]
 
 
-def load_ultrafeedback(split, subset=None):
+def load_ultrafeedback(split, subset=None, label="truthfulness"):
     ds = hf_load("openbmb/UltraFeedback", split=split)
     items = []
     for row in ds:
         prompt = row["instruction"]
         for completion in row["completions"]:
             try:
-                rating = completion["annotations"]["truthfulness"]["Rating"]
-                correctness = int(rating)
+                if label == "overall_score":
+                    correctness = float(completion["overall_score"])
+                else:
+                    rating = completion["annotations"][label]["Rating"]
+                    correctness = int(rating)
             except (KeyError, TypeError, ValueError):
-                continue  # skip N/A or missing ratings
+                continue
             items.append({
                 "prompt":      prompt,
                 "response":    completion["response"],
@@ -298,6 +305,10 @@ def run_probe(items, dataset, llm, tokenizer, probe, probe_layer):
 def main(args):
     loader = LOADERS[args.dataset]
     load_kwargs = {} if args.dataset in ("truthfulqa", "helpsteer2") else {"subset": args.subset}
+    if args.dataset == "helpsteer2" and args.label:
+        load_kwargs["label"] = args.label
+    elif args.dataset == "ultrafeedback" and args.label:
+        load_kwargs["label"] = args.label
     items = loader(args.split, **load_kwargs)
     if args.max_samples:
         items = items[:args.max_samples]
@@ -376,6 +387,8 @@ if __name__ == "__main__":
     parser.add_argument("--subset",      default=None)
     parser.add_argument("--split",       default=None)
     parser.add_argument("--max_samples", type=int, default=None)
+    parser.add_argument("--label",       default=None,
+                        help="Label field for helpsteer2/ultrafeedback (default: correctness/truthfulness)")
     parser.add_argument("--save",        default=None)
     args = parser.parse_args()
 
@@ -389,6 +402,7 @@ if __name__ == "__main__":
         args.probe_dir = f"probes/{args.probe_id}"
     if args.save is None:
         suffix = f"_{args.subset}" if args.subset else ""
-        args.save = f"results/{args.dataset}{suffix}_{args.scorer}.json"
+        label_suffix = f"_{args.label}" if args.label and args.dataset in ("helpsteer2", "ultrafeedback") else ""
+        args.save = f"results/{args.dataset}{suffix}_{args.scorer}{label_suffix}.json"
 
     main(args)

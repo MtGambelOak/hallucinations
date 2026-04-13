@@ -26,10 +26,10 @@ DATASETS = {
     "TruthfulQA":    "results/truthfulqa_armorm.json",
     "TriviaQA":      "results/triviaqa_armorm.json",
     "LongFact":      "results/longfact_armorm.json",
-    "HelpSteer2":    "results/helpsteer2_armorm.json",
-    "UltraFeedback": "results/ultrafeedback_armorm.json",
+    "HelpSteer2 (correctness)":    "results/helpsteer2_armorm.json",
+    "UltraFeedback (truthfulness)": "results/ultrafeedback_armorm.json",
 }
-ORDINAL = {"HelpSteer2", "UltraFeedback"}
+ORDINAL = {"HelpSteer2 (correctness)", "UltraFeedback (truthfulness)"}
 
 SCORERS = {
     "TruthfulQA": {
@@ -62,7 +62,7 @@ SCORERS = {
         "Probe Qwen2.5-7b (linear)":   "results/longfact_probe_qwen2_5_7b_linear.json",
         "Probe Qwen2.5-7b (LoRA KL)":  "results/longfact_probe_qwen2_5_7b_lora_kl.json",
     },
-    "HelpSteer2": {
+    "HelpSteer2 (correctness)": {
         "ArmoRM":                      "results/helpsteer2_armorm.json",
         "Probe Gemma2-9b (linear)":    "results/helpsteer2_probe_gemma2_9b_linear.json",
         "Probe Gemma2-9b (LoRA KL)":   "results/helpsteer2_probe_gemma2_9b_lora_kl.json",
@@ -72,7 +72,7 @@ SCORERS = {
         "Probe Qwen2.5-7b (linear)":   "results/helpsteer2_probe_qwen2_5_7b_linear.json",
         "Probe Qwen2.5-7b (LoRA KL)":  "results/helpsteer2_probe_qwen2_5_7b_lora_kl.json",
     },
-    "UltraFeedback": {
+    "UltraFeedback (truthfulness)": {
         "ArmoRM":                      "results/ultrafeedback_armorm.json",
         "Probe Gemma2-9b (linear)":    "results/ultrafeedback_probe_gemma2_9b_linear.json",
         "Probe Gemma2-9b (LoRA KL)":   "results/ultrafeedback_probe_gemma2_9b_lora_kl.json",
@@ -231,3 +231,94 @@ if benchmarks_data:
     print("Saved results/auroc_bars.png")
 else:
     print("No AUROC results found — skipping bar charts")
+
+LABEL_SCORERS = {
+    "HelpSteer2 (correctness)":           {"ArmoRM": "results/helpsteer2_armorm.json"},
+    "HelpSteer2 (helpfulness)":           {"ArmoRM": "results/helpsteer2_armorm_helpfulness.json"},
+    "HelpSteer2 (coherence)":             {"ArmoRM": "results/helpsteer2_armorm_coherence.json"},
+    "HelpSteer2 (complexity)":            {"ArmoRM": "results/helpsteer2_armorm_complexity.json"},
+    "HelpSteer2 (verbosity)":             {"ArmoRM": "results/helpsteer2_armorm_verbosity.json"},
+    "UltraFeedback (truthfulness)":       {"ArmoRM": "results/ultrafeedback_armorm.json"},
+    "UltraFeedback (helpfulness)":        {"ArmoRM": "results/ultrafeedback_armorm_helpfulness.json"},
+    "UltraFeedback (honesty)":            {"ArmoRM": "results/ultrafeedback_armorm_honesty.json"},
+    "UltraFeedback (instruction_following)": {"ArmoRM": "results/ultrafeedback_armorm_instruction_following.json"},
+}
+
+label_benchmarks_data = {}
+for benchmark, sources in LABEL_SCORERS.items():
+    rows = []
+    for source_name, path in sources.items():
+        aurocs = load_aurocs(path)
+        for classifier, auroc in aurocs.items():
+            label = classifier  # ArmoRM only, so classifier = dimension name
+            rows.append((label, auroc, False))
+    if rows:
+        rows.sort(key=lambda x: x[1], reverse=True)
+        label_benchmarks_data[benchmark] = rows
+
+if label_benchmarks_data:
+    n = len(label_benchmarks_data)
+    fig, axes = plt.subplots(1, n, figsize=(6 * n, 10), sharey=False)
+    if n == 1:
+        axes = [axes]
+
+    for ax, (benchmark, rows) in zip(axes, label_benchmarks_data.items()):
+        labels  = [r[0] for r in rows]
+        aurocs  = [r[1] for r in rows]
+        y = range(len(labels))
+        ax.barh(y, aurocs, color="#4878cf", edgecolor="white", linewidth=0.4)
+        ax.axvline(0.5, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
+        ax.set_yticks(y)
+        ax.set_yticklabels(labels, fontsize=7)
+        ax.invert_yaxis()
+        ax.set_xlabel("AUROC", fontsize=9)
+        ax.set_title(benchmark, fontsize=11, fontweight="bold")
+        ax.set_xlim(0.4, 1.0)
+
+    plt.tight_layout()
+    plt.savefig("results/auroc_bars_labels.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("Saved results/auroc_bars_labels.png")
+else:
+    print("No label variant files found — skipping label bars")
+
+LABEL_FILES = {
+    "HelpSteer2\n(correctness)":       "results/helpsteer2_armorm.json",
+    "HelpSteer2\n(helpfulness)":        "results/helpsteer2_armorm_helpfulness.json",
+    "HelpSteer2\n(coherence)":          "results/helpsteer2_armorm_coherence.json",
+    "HelpSteer2\n(complexity)":         "results/helpsteer2_armorm_complexity.json",
+    "HelpSteer2\n(verbosity)":          "results/helpsteer2_armorm_verbosity.json",
+    "UltraFeedback\n(truthfulness)":    "results/ultrafeedback_armorm.json",
+    "UltraFeedback\n(helpfulness)":     "results/ultrafeedback_armorm_helpfulness.json",
+    "UltraFeedback\n(honesty)":         "results/ultrafeedback_armorm_honesty.json",
+    "UltraFeedback\n(instruction_following)": "results/ultrafeedback_armorm_instruction_following.json",
+}
+
+label_cols = []
+label_names = []
+for col_name, path in LABEL_FILES.items():
+    aurocs = load_aurocs(path)
+    if not aurocs:
+        continue
+    per_dim = {k: v for k, v in aurocs.items() if k in ATTRIBUTES}
+    if not per_dim:
+        continue
+    label_cols.append([per_dim.get(a, float("nan")) for a in ATTRIBUTES])
+    label_names.append(col_name)
+
+if label_cols:
+    mat = np.array(label_cols).T  # (n_attr, n_labels)
+    fig, ax = plt.subplots(figsize=(len(label_names) * 1.2 + 2, len(ATTRIBUTES) * 0.4 + 1))
+    im = ax.imshow(mat, vmin=0.4, vmax=0.9, cmap="RdYlGn", aspect="auto")
+    ax.set_xticks(range(len(label_names)))
+    ax.set_xticklabels(label_names, fontsize=8)
+    ax.set_yticks(range(len(ATTRIBUTES)))
+    ax.set_yticklabels(SHORT, fontsize=8)
+    ax.set_title("ArmoRM per-dimension AUROC classifying each target label\n(shows feature entanglement)", fontsize=10)
+    plt.colorbar(im, ax=ax, fraction=0.03, pad=0.02, label="AUROC")
+    plt.tight_layout()
+    plt.savefig("results/entanglement_heatmap.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print("Saved results/entanglement_heatmap.png")
+else:
+    print("No label variant files found — skipping entanglement heatmap")

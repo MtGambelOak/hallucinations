@@ -20,18 +20,31 @@ SCRATCH=/scratch/general/vast/u1110118/hallucinations
 SAE_ARGS="--steps 30000 --batch_size 512 --lr 5e-4 --no_wandb"
 
 for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafeedback hh_rlhf; do
+    # final layer
     CACHE=$SCRATCH/${DATASET}_diff.pt
     if [ ! -f "$CACHE" ]; then
-        echo "Skipping $DATASET — cache not found at $CACHE"
-        continue
+        echo "Skipping $DATASET (final layer) — cache not found"
+    else
+        echo "Training SAE on $DATASET (final layer)..."
+        python train_rm_sae.py \
+            --activations $CACHE \
+            --output checkpoints/rm_sae_${DATASET} \
+            $SAE_ARGS
     fi
-    echo "========================================"
-    echo "Training SAE on $DATASET"
-    echo "========================================"
-    python train_rm_sae.py \
-        --activations $CACHE \
-        --output checkpoints/rm_sae_${DATASET} \
-        $SAE_ARGS
+
+    # intermediate layers
+    for LAYER in 8 16; do
+        CACHE=$SCRATCH/${DATASET}_layer${LAYER}_diff.pt
+        if [ ! -f "$CACHE" ]; then
+            echo "Skipping $DATASET layer $LAYER — cache not found"
+            continue
+        fi
+        echo "Training SAE on $DATASET (layer $LAYER)..."
+        python train_rm_sae.py \
+            --activations $CACHE \
+            --output checkpoints/rm_sae_${DATASET}_layer${LAYER} \
+            $SAE_ARGS
+    done
 done
 
 echo "Done."

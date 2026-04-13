@@ -37,7 +37,7 @@ RESULTS = {
         "Probe Qwen2.5-7b (linear)":   "results/longfact_probe_qwen2_5_7b_linear.json",
         "Probe Qwen2.5-7b (LoRA KL)":  "results/longfact_probe_qwen2_5_7b_lora_kl.json",
     },
-    "HelpSteer2": {
+    "HelpSteer2 (label=correctness)": {
         "ArmoRM":                      "results/helpsteer2_armorm.json",
         "Probe Gemma2-9b (linear)":    "results/helpsteer2_probe_gemma2_9b_linear.json",
         "Probe Gemma2-9b (LoRA KL)":   "results/helpsteer2_probe_gemma2_9b_lora_kl.json",
@@ -47,7 +47,7 @@ RESULTS = {
         "Probe Qwen2.5-7b (linear)":   "results/helpsteer2_probe_qwen2_5_7b_linear.json",
         "Probe Qwen2.5-7b (LoRA KL)":  "results/helpsteer2_probe_qwen2_5_7b_lora_kl.json",
     },
-    "UltraFeedback": {
+    "UltraFeedback (label=truthfulness)": {
         "ArmoRM":                      "results/ultrafeedback_armorm.json",
         "Probe Gemma2-9b (linear)":    "results/ultrafeedback_probe_gemma2_9b_linear.json",
         "Probe Gemma2-9b (LoRA KL)":   "results/ultrafeedback_probe_gemma2_9b_lora_kl.json",
@@ -57,6 +57,14 @@ RESULTS = {
         "Probe Qwen2.5-7b (linear)":   "results/ultrafeedback_probe_qwen2_5_7b_linear.json",
         "Probe Qwen2.5-7b (LoRA KL)":  "results/ultrafeedback_probe_qwen2_5_7b_lora_kl.json",
     },
+    # ArmoRM classifying non-default labels — shows feature entanglement
+    "HelpSteer2 (label=helpfulness)":  {"ArmoRM": "results/helpsteer2_armorm_helpfulness.json"},
+    "HelpSteer2 (label=coherence)":    {"ArmoRM": "results/helpsteer2_armorm_coherence.json"},
+    "HelpSteer2 (label=complexity)":   {"ArmoRM": "results/helpsteer2_armorm_complexity.json"},
+    "HelpSteer2 (label=verbosity)":    {"ArmoRM": "results/helpsteer2_armorm_verbosity.json"},
+    "UltraFeedback (label=helpfulness)":         {"ArmoRM": "results/ultrafeedback_armorm_helpfulness.json"},
+    "UltraFeedback (label=honesty)":             {"ArmoRM": "results/ultrafeedback_armorm_honesty.json"},
+    "UltraFeedback (label=instruction_following)": {"ArmoRM": "results/ultrafeedback_armorm_instruction_following.json"},
 }
 
 
@@ -103,28 +111,57 @@ def print_table(benchmark: str, rows: list[tuple[str, float]]) -> None:
 
 
 def main():
-    for benchmark, sources in RESULTS.items():
-        rows = []
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--by-classifier", action="store_true",
+                        help="Group by classifier, show AUROC per benchmark")
+    args = parser.parse_args()
 
-        for source_name, path in sources.items():
-            aurocs = load_aurocs(path)
-            if not aurocs:
-                print(f"[{benchmark}] {source_name}: no results found at {path}")
+    if args.by_classifier:
+        # classifier -> [(benchmark, auroc), ...]
+        by_clf = {}
+        for benchmark, sources in RESULTS.items():
+            for source_name, path in sources.items():
+                aurocs = load_aurocs(path)
+                if not aurocs:
+                    continue
+                for classifier, auroc in aurocs.items():
+                    if source_name == "ArmoRM":
+                        label = classifier
+                    elif len(aurocs) == 1:
+                        label = source_name
+                    else:
+                        label = f"{source_name} ({classifier})"
+                    by_clf.setdefault(label, []).append((benchmark, auroc))
+
+        for clf, rows in sorted(by_clf.items()):
+            print(f"\n{'='*60}")
+            print(f"  {clf}")
+            print(f"{'='*60}")
+            print(f"  {'Benchmark':<47} AUROC")
+            print(f"  {'-'*55}")
+            for benchmark, auroc in sorted(rows, key=lambda x: x[1], reverse=True):
+                print(f"  {benchmark:<47} {auroc:.4f}")
+    else:
+        for benchmark, sources in RESULTS.items():
+            rows = []
+            for source_name, path in sources.items():
+                aurocs = load_aurocs(path)
+                if not aurocs:
+                    print(f"[{benchmark}] {source_name}: no results found at {path}")
+                    continue
+                for classifier, auroc in aurocs.items():
+                    if source_name == "ArmoRM":
+                        label = classifier
+                    elif len(aurocs) == 1:
+                        label = source_name
+                    else:
+                        label = f"{source_name} ({classifier})"
+                    rows.append((label, auroc))
+            if not rows:
                 continue
-            for classifier, auroc in aurocs.items():
-                if source_name == "ArmoRM":
-                    label = classifier
-                elif len(aurocs) == 1:
-                    label = source_name
-                else:
-                    label = f"{source_name} ({classifier})"
-                rows.append((label, auroc))
-
-        if not rows:
-            continue
-
-        rows.sort(key=lambda x: x[1], reverse=True)
-        print_table(benchmark, rows)
+            rows.sort(key=lambda x: x[1], reverse=True)
+            print_table(benchmark, rows)
 
     print()
 
