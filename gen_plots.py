@@ -171,7 +171,7 @@ if datasets_loaded:
         ax_bar.set_title("Corr. with factuality label", fontsize=9, pad=8)
         ax_bar.invert_yaxis()
 
-    plt.savefig("results/heatmaps.png", dpi=150, bbox_inches="tight")
+    plt.savefig("results/heatmaps.png", dpi=600, bbox_inches="tight")
     plt.close()
     print("Saved results/heatmaps.png")
 else:
@@ -226,7 +226,7 @@ if benchmarks_data:
                bbox_to_anchor=(0.5, -0.02))
 
     plt.tight_layout()
-    plt.savefig("results/auroc_bars.png", dpi=150, bbox_inches="tight")
+    plt.savefig("results/auroc_bars.png", dpi=600, bbox_inches="tight")
     plt.close()
     print("Saved results/auroc_bars.png")
 else:
@@ -276,7 +276,7 @@ if label_benchmarks_data:
         ax.set_xlim(0.4, 1.0)
 
     plt.tight_layout()
-    plt.savefig("results/auroc_bars_labels.png", dpi=150, bbox_inches="tight")
+    plt.savefig("results/auroc_bars_labels.png", dpi=600, bbox_inches="tight")
     plt.close()
     print("Saved results/auroc_bars_labels.png")
 else:
@@ -317,8 +317,152 @@ if label_cols:
     ax.set_title("ArmoRM per-dimension AUROC classifying each target label\n(shows feature entanglement)", fontsize=10)
     plt.colorbar(im, ax=ax, fraction=0.03, pad=0.02, label="AUROC")
     plt.tight_layout()
-    plt.savefig("results/entanglement_heatmap.png", dpi=150, bbox_inches="tight")
+    plt.savefig("results/entanglement_heatmap.png", dpi=600, bbox_inches="tight")
     plt.close()
     print("Saved results/entanglement_heatmap.png")
 else:
     print("No label variant files found - skipping entanglement heatmap")
+
+
+# Plot: Mean correlation heatmap across all datasets
+
+if datasets_loaded:
+    all_mats = []
+    ds_names_used = []
+    for name, (rewards, labels) in datasets_loaded.items():
+        all_mats.append(corr_matrix(rewards))
+        ds_names_used.append(name)
+
+    stacked = np.stack(all_mats)
+    mean_mat = stacked.mean(axis=0)
+    n_attr = len(ATTRIBUTES)
+
+    # Target features (y-axis rows)
+    target_short = ['truthfulness', 'correctness', 'honesty']
+    target_set = set(target_short)
+    target_indices = [SHORT.index(t) for t in target_short]
+
+    # Reorder x-axis: target features first (same order), then the rest
+    other_indices = [i for i in range(n_attr) if i not in target_indices]
+    col_order = target_indices + other_indices
+    col_labels = [SHORT[i] for i in col_order]
+
+    # Slice rows (target only) and reorder columns
+    sub_mat = mean_mat[np.ix_(target_indices, col_order)]  # shape (3, 19)
+
+    fig, ax = plt.subplots(figsize=(16, 6.5))
+    im = ax.imshow(sub_mat, vmin=-1, vmax=1, cmap="RdBu_r", aspect="equal")
+
+    ax.set_xticks(range(n_attr))
+    ax.set_yticks(range(len(target_short)))
+    ax.set_xticklabels(col_labels, rotation=45, ha="right", fontsize=14)
+    ax.set_yticklabels(target_short, fontsize=15, fontweight="bold")
+
+    # Color target labels red on both axes
+    target_color = "#cc0000"
+    for label in ax.get_yticklabels():
+        label.set_color(target_color)
+    for i, label in enumerate(ax.get_xticklabels()):
+        if col_labels[i] in target_set:
+            label.set_color(target_color)
+            label.set_fontweight("bold")
+
+    # Annotate cells
+    for ri in range(len(target_short)):
+        for j in range(n_attr):
+            # Skip diagonal (where row feature == column feature)
+            if col_order[j] == target_indices[ri]:
+                continue
+            val = sub_mat[ri, j]
+            color = "white" if abs(val) > 0.6 else "black"
+            ax.text(j, ri, f"{val:.2f}", ha="center", va="center",
+                    fontsize=12, color=color, fontweight="bold")
+
+    cbar = plt.colorbar(im, ax=ax, fraction=0.02, pad=0.02, shrink=0.5)
+    cbar.set_label("Pearson r", fontsize=14)
+    cbar.ax.tick_params(labelsize=12)
+    plt.tight_layout()
+    plt.savefig("results/mean_correlation_heatmap.png", dpi=600, bbox_inches="tight")
+    plt.close()
+    print("Saved results/mean_correlation_heatmap.png")
+else:
+    print("No datasets loaded - skipping mean correlation heatmap")
+
+
+# Plot: Top-13 AUROC comparison - LongFact vs HelpSteer2
+
+COMPARISON_BENCHMARKS = {
+    "LongFact\n(entity-annotated)": SCORERS.get("LongFact", {}),
+    "HelpSteer2\n(human-annotated)": SCORERS.get("HelpSteer2 (correctness)", {}),
+}
+
+comparison_data = {}
+for panel_name, sources in COMPARISON_BENCHMARKS.items():
+    rows = []
+    for source_name, path in sources.items():
+        aurocs = load_aurocs(path)
+        for classifier, auroc in aurocs.items():
+            if source_name == "ArmoRM":
+                label = classifier
+                is_probe = False
+            else:
+                label = source_name if classifier in ("probe", "aggregate") else f"{source_name} ({classifier})"
+                is_probe = True
+            rows.append((label, auroc, is_probe))
+    if rows:
+        rows.sort(key=lambda x: x[1], reverse=True)
+        comparison_data[panel_name] = rows[:13]
+
+if comparison_data:
+    n = len(comparison_data)
+    fig, axes = plt.subplots(1, n, figsize=(10 * n, 8), sharey=False)
+    if n == 1:
+        axes = [axes]
+
+    FACTUALITY_DIMS = {"ultrafeedback-truthfulness", "helpsteer-correctness",
+                        "ultrafeedback-honesty", "truthfulness", "correctness", "honesty"}
+
+    for ax, (benchmark, rows) in zip(axes, comparison_data.items()):
+        labels_list = [r[0] for r in rows]
+        aurocs_list = [r[1] for r in rows]
+        colors = []
+        for r in rows:
+            if r[2]:  # probe
+                colors.append("#e07b39")
+            elif r[0] in FACTUALITY_DIMS:
+                colors.append("#cc0000")
+            else:
+                colors.append("#4878cf")
+
+        y = range(len(labels_list))
+        bars = ax.barh(y, aurocs_list, color=colors, edgecolor="white", linewidth=0.8,
+                        height=0.7)
+        ax.axvline(0.5, color="black", linewidth=1.0, linestyle="--", alpha=0.5)
+        ax.set_yticks(y)
+        ax.set_yticklabels(labels_list, fontsize=18)
+        ax.invert_yaxis()
+        ax.set_xlabel("AUROC", fontsize=20)
+        ax.set_title(benchmark, fontsize=24, fontweight="bold", pad=14)
+        ax.set_xlim(0.4, 1.0)
+        ax.tick_params(axis='x', labelsize=16)
+
+        # Annotate bars with values
+        for i, v in enumerate(aurocs_list):
+            ax.text(v + 0.005, i, f"{v:.3f}", ha="left", va="center",
+                    fontsize=14, color="#333333")
+
+    from matplotlib.patches import Patch
+    legend = [Patch(color="#cc0000", label="ArmoRM factuality dimension"),
+              Patch(color="#4878cf", label="ArmoRM other dimension"),
+              Patch(color="#e07b39", label="Probe")]
+    fig.legend(handles=legend, loc="lower center", ncol=3, fontsize=18,
+               bbox_to_anchor=(0.5, -0.08))
+
+    fig.suptitle("Probes vs. ArmoRM: Entity-Annotated vs. Human-Annotated Factuality",
+                 fontsize=26, fontweight="bold", y=1.02)
+    plt.tight_layout()
+    plt.savefig("results/auroc_comparison_longfact_helpsteer2.png", dpi=600, bbox_inches="tight")
+    plt.close()
+    print("Saved results/auroc_comparison_longfact_helpsteer2.png")
+else:
+    print("No comparison data found - skipping LongFact vs HelpSteer2 comparison")
