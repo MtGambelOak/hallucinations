@@ -20,7 +20,7 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from pathlib import Path
 
-# Constants
+#  Constants 
 
 ATTRIBUTES = [
     'helpsteer-helpfulness', 'helpsteer-correctness', 'helpsteer-coherence',
@@ -62,7 +62,7 @@ SAFETY_KEYWORDS = [
 ]
 
 
-# Helpers
+# Helpers 
 
 def classify_label(label: str) -> str | None:
     """Classify a latent label as 'factuality', 'safety', or None."""
@@ -124,13 +124,16 @@ def load_entries(results_dir: Path):
                 continue
 
             routing = compute_routing(dot_products, j)
+            # Truncate long labels for poster legibility
+            MAX_LABEL_CHARS = 45
+            short_label = label if len(label) <= MAX_LABEL_CHARS else label[:MAX_LABEL_CHARS - 1] + "…"
             entry = {
                 "label": label,
                 "dataset": dataset,
                 "abbrev": abbrev,
                 "latent_idx": j,
                 "routing": routing,
-                "display": f"{label}  ({abbrev}, l{j})",
+                "display": f"{short_label}  ({abbrev}, l{j})",
             }
 
             if category == "factuality":
@@ -143,7 +146,19 @@ def load_entries(results_dir: Path):
     return factuality_entries, safety_entries
 
 
-# Plot
+# Plot 
+
+# Poster-scale font sizes
+FONT_TITLE_SUPER = 24
+FONT_TITLE_SECTION = 32
+FONT_TICK = 19
+FONT_ANNOT_PCT = 16
+FONT_ANNOT_TOTAL = 20
+FONT_AXIS_LABEL = 22
+FONT_LEGEND = 18
+FONT_FOOTNOTE = 12
+BAR_HEIGHT = 0.6
+
 
 def draw_section(ax, entries, primary_key, primary_color, secondary_key,
                  secondary_color, tertiary_key, tertiary_color, baseline_pct):
@@ -151,7 +166,7 @@ def draw_section(ax, entries, primary_key, primary_color, secondary_key,
     n = len(entries)
     if n == 0:
         ax.text(0.5, 0.5, "(no matching latents)", transform=ax.transAxes,
-                ha="center", va="center", fontsize=10, color="gray")
+                ha="center", va="center", fontsize=FONT_TICK, color="gray")
         return
 
     y_pos = np.arange(n)
@@ -161,43 +176,51 @@ def draw_section(ax, entries, primary_key, primary_color, secondary_key,
     tertiary = [e["routing"][tertiary_key]  for e in entries]
     totals   = [e["routing"]["total"]       for e in entries]
 
-    # Stacked bars: primary, then secondary, then tertiary
-    ax.barh(y_pos, primary, color=primary_color,
+    # Stacked bars
+    ax.barh(y_pos, primary, height=BAR_HEIGHT, color=primary_color,
             edgecolor="white", linewidth=0.5)
-    ax.barh(y_pos, second, left=primary, color=secondary_color,
+    ax.barh(y_pos, second, left=primary, height=BAR_HEIGHT, color=secondary_color,
             edgecolor="white", linewidth=0.5)
     left2 = [p + s for p, s in zip(primary, second)]
-    ax.barh(y_pos, tertiary, left=left2, color=tertiary_color,
+    ax.barh(y_pos, tertiary, left=left2, height=BAR_HEIGHT, color=tertiary_color,
             edgecolor="white", linewidth=0.5)
 
     # Percentage annotations
     for i in range(n):
         if primary[i] > 6:
             ax.text(primary[i] / 2, i, f"{primary[i]:.0f}%",
-                    ha="center", va="center", fontsize=8, fontweight="bold")
+                    ha="center", va="center", fontsize=FONT_ANNOT_PCT,
+                    fontweight="bold", color="white")
         cum = primary[i] + second[i]
         if tertiary[i] > 6:
             ax.text(cum + tertiary[i] / 2, i, f"{tertiary[i]:.0f}%",
-                    ha="center", va="center", fontsize=8)
+                    ha="center", va="center", fontsize=FONT_ANNOT_PCT,
+                    color="white")
 
     # Total |dot product| annotations (right of each bar)
     for i in range(n):
         ax.text(101.5, i, f"{totals[i]:.3f}",
-                ha="left", va="center", fontsize=7, color="#555555")
+                ha="left", va="center", fontsize=FONT_ANNOT_TOTAL, color="#555555")
 
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(labels, fontsize=9)
+    ax.set_yticklabels(labels, fontsize=FONT_TICK, fontfamily="monospace")
+    ax.tick_params(axis='y', length=0, pad=8)
+    ax.tick_params(axis='x', labelsize=FONT_TICK)
     ax.invert_yaxis()
 
     # Baselines
     avg = np.mean(primary)
-    ax.axvline(baseline_pct, color="black", linestyle="--", linewidth=1.0,
+    ax.axvline(baseline_pct, color="black", linestyle="--", linewidth=1.5,
                alpha=0.6)
-    ax.axvline(avg, color="#d73027", linestyle="-.", linewidth=1.0, alpha=0.7)
+    ax.axvline(avg, color="#d73027", linestyle="-.", linewidth=1.5, alpha=0.7)
 
-    ax.set_xlim(0, 100)
+    ax.set_xlim(0, 108)  # extra room for total annotations
     ax.set_xticks(range(0, 101, 20))
-    ax.set_xticklabels([f"{x}%" for x in range(0, 101, 20)])
+    ax.set_xticklabels([f"{x}%" for x in range(0, 101, 20)], fontsize=FONT_TICK)
+
+    # Remove top/right spines for cleaner look
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
 
 def main():
@@ -221,65 +244,80 @@ def main():
         return
 
     # Colors
-    BLUE   = "#3b7dd8"   # Correctness / Truthfulness / Honesty
-    ORANGE = "#e8a735"   # All other ArmoRM objectives
-    GRAY   = "#999999"   # Safety (beavertails-is_safe)
+    BLUE   = "#3b7dd8"   # Correctness / Truthfulness / Honesty (factuality)
+    ORANGE = "#e8a735"   # Safety (beavertails-is_safe)
+    GRAY   = "#999999"   # All other ArmoRM objectives
 
     uniform_fact = len(FACTUALITY_ATTRS) / len(ATTRIBUTES) * 100  # 3/19 ≈ 15.8%
     uniform_safe = len(SAFETY_ATTRS)     / len(ATTRIBUTES) * 100  # 1/19 ≈  5.3%
 
-    fig_height = max(8, 0.45 * (n_fact + n_safe) + 5)
+    # Figure sizing (vertical layout) 
+    row_height = 0.55
+    top_pad = 1.6    # supertitle
+    mid_pad = 0.8    # gap between sections
+    bot_pad = 1.8    # footnote + xlabel (extra room to avoid overlap)
+    fig_height = top_pad + row_height * max(n_fact, 1) + mid_pad + row_height * max(n_safe, 1) + bot_pad
+
     fig, (ax1, ax2) = plt.subplots(
-        2, 1, figsize=(13, fig_height),
+        2, 1, figsize=(22, fig_height),
         gridspec_kw={"height_ratios": [max(n_fact, 1), max(n_safe, 1)]},
     )
-    fig.subplots_adjust(hspace=0.45)
+    # Leave right margin for the legend - generous whitespace before legend
+    fig.subplots_adjust(hspace=0.18, top=1 - top_pad / fig_height,
+                        bottom=bot_pad / fig_height, left=0.22, right=0.62)
 
-    # Factuality section
-    ax1.set_title(f"Factuality-labeled SAE latents (n = {n_fact})",
-                  fontsize=12, fontweight="bold", pad=10)
+    # Factuality section (top) 
+    ax1.set_title(f"Factuality-labeled SAE latents  (n = {n_fact})",
+                  fontsize=FONT_TITLE_SECTION, fontweight="bold", pad=14)
     draw_section(ax1, factuality_entries,
                  primary_key="factuality", primary_color=BLUE,
-                 secondary_key="safety",   secondary_color=GRAY,
-                 tertiary_key="other",     tertiary_color=ORANGE,
+                 secondary_key="safety",   secondary_color=ORANGE,
+                 tertiary_key="other",     tertiary_color=GRAY,
                  baseline_pct=uniform_fact)
 
-    # Safety section
-    ax2.set_title(f"Safety-labeled SAE latents (n = {n_safe})",
-                  fontsize=12, fontweight="bold", pad=10)
+    # Safety section (bottom) 
+    ax2.set_title(f"Safety-labeled SAE latents  (n = {n_safe})",
+                  fontsize=FONT_TITLE_SECTION, fontweight="bold", pad=14)
     draw_section(ax2, safety_entries,
-                 primary_key="safety",     primary_color=GRAY,
+                 primary_key="safety",     primary_color=ORANGE,
                  secondary_key="factuality", secondary_color=BLUE,
-                 tertiary_key="other",     tertiary_color=ORANGE,
+                 tertiary_key="other",     tertiary_color=GRAY,
                  baseline_pct=uniform_safe)
-    ax2.set_xlabel("Share of total |dot product| contribution (%)", fontsize=11)
+    ax2.set_xlabel("Share of total |dot product| contribution (%)",
+                   fontsize=FONT_AXIS_LABEL, labelpad=10)
 
-    # Supertitle
+    # Supertitle 
     fig.suptitle("Do SAE latents contribute to their \"own\" ArmoRM objective?",
-                 fontsize=14, fontweight="bold", y=1.01)
+                 fontsize=FONT_TITLE_SUPER, fontweight="bold",
+                 y=1 - 0.4 / fig_height)
 
-    # Legend
+    # Legend (right side) 
     legend_elements = [
-        Patch(facecolor=BLUE,   label="Correctness / Truthfulness / Honesty"),
-        Patch(facecolor=ORANGE, label="All other ArmoRM objectives"),
-        Patch(facecolor=GRAY,   label="Safety (beavertails-is_safe)"),
-        Line2D([0], [0], color="black",   linestyle="--",  label="Uniform baseline (x/19 objectives)"),
-        Line2D([0], [0], color="#d73027", linestyle="-.",  label="Category average"),
+        Patch(facecolor=BLUE,   label="Correctness / Truthfulness\n/ Honesty"),
+        Patch(facecolor=ORANGE, label="Safety (beavertails-is_safe)"),
+        Patch(facecolor=GRAY,   label="All other ArmoRM objectives"),
+        Line2D([0], [0], color="black",   linestyle="--", linewidth=1.5,
+               label="Uniform baseline (x/19)"),
+        Line2D([0], [0], color="#d73027", linestyle="-.", linewidth=1.5,
+               label="Category average"),
     ]
-    fig.legend(handles=legend_elements, loc="upper center", ncol=3, fontsize=9,
-               bbox_to_anchor=(0.5, 0.995))
+    fig.legend(handles=legend_elements, loc="center right", ncol=1,
+               fontsize=FONT_LEGEND, bbox_to_anchor=(0.97, 0.5),
+               frameon=True, edgecolor="#cccccc", fancybox=False,
+               handlelength=2.0, labelspacing=1.2)
 
-    # Footnote
+    # Footnote 
     footnote = (
-        "Bars show share of total |dot product| across all 19 ArmoRM objectives. "
-        "Numbers at right show total |dot product| magnitude (sum of |W_dec_j . W_head_i| over all i).\n"
-        "SAE keys: hs2=helpsteer2, hs2f=hs2_factuality, hh=hh_rlhf, "
-        "uf=ultrafeedback, uff=uf_factuality."
+        "Bars show share of total |dot product| across all 19 ArmoRM objectives.  "
+        "Right-side numbers = total |dot product| magnitude.\n"
+        "SAE keys:  hs2 = helpsteer2,  hs2f = hs2_factuality,  "
+        "hh = hh_rlhf,  uf = ultrafeedback,  uff = uf_factuality."
     )
-    fig.text(0.5, -0.02, footnote, ha="center", fontsize=8, color="gray")
+    fig.text(0.55, 0.3 / fig_height, footnote, ha="center",
+             fontsize=FONT_FOOTNOTE, color="#666666")
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(args.output, dpi=150, bbox_inches="tight")
+    plt.savefig(args.output, dpi=600, bbox_inches="tight", facecolor="white")
     plt.close()
     print(f"Saved {args.output}")
 
