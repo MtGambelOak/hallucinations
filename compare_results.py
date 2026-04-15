@@ -57,7 +57,7 @@ RESULTS = {
         "Probe Qwen2.5-7b (linear)":   "results/ultrafeedback_probe_qwen2_5_7b_linear.json",
         "Probe Qwen2.5-7b (LoRA KL)":  "results/ultrafeedback_probe_qwen2_5_7b_lora_kl.json",
     },
-    # ArmoRM classifying non-default labels — shows feature entanglement
+    # ArmoRM classifying non-default labels - shows feature entanglement
     "HelpSteer2 (label=helpfulness)":  {"ArmoRM": "results/helpsteer2_armorm_helpfulness.json"},
     "HelpSteer2 (label=coherence)":    {"ArmoRM": "results/helpsteer2_armorm_coherence.json"},
     "HelpSteer2 (label=complexity)":   {"ArmoRM": "results/helpsteer2_armorm_complexity.json"},

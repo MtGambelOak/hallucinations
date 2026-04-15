@@ -6,8 +6,8 @@ compares reconstruction quality, dead latents, reward-head alignment, and
 (optionally) auto-generated feature labels across all sizes.
 
 Produces:
-  results/sae_sweep_<dataset>.json   — all metrics in one file
-  results/sae_sweep_<dataset>.png    — comparison plots
+  results/sae_sweep_<dataset>.json   - all metrics in one file
+  results/sae_sweep_<dataset>.png    - comparison plots
 
 Usage:
   python sweep_sae_sizes.py --activations /path/to/ultrafeedback_diff.pt --dataset ultrafeedback
@@ -34,7 +34,7 @@ from sae_lens import (
 )
 from sae_lens.training.sae_trainer import SAETrainer, SAETrainerConfig
 
-# ── Constants ──────────────────────────────────────────────────────────────────
+# Constants 
 
 ARMORM_MODEL_ID = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
 
@@ -55,7 +55,7 @@ FACTUALITY_ATTRS = {
 SHORT_ATTRS = [a.split("-", 1)[1] for a in ATTRIBUTES]
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# Helpers 
 
 def make_data_provider(diff_vecs: torch.Tensor, batch_size: int, device: str):
     n = diff_vecs.shape[0]
@@ -144,7 +144,7 @@ def compute_reconstruction_metrics(sae, diff_vecs: torch.Tensor,
     return {"mse": mse, "cosine_similarity": cos_mean, "fvu": fvu, "r_squared": 1.0 - fvu}
 
 
-# ── Stage 1: Train ─────────────────────────────────────────────────────────────
+# Stage 1: Train
 
 def train_one(diff_vecs: torch.Tensor, d_sae: int, k: int,
               steps: int, batch_size: int, lr: float,
@@ -197,7 +197,7 @@ def train_one(diff_vecs: torch.Tensor, d_sae: int, k: int,
     return output_dir
 
 
-# ── Stage 2: Analyze ───────────────────────────────────────────────────────────
+# Stage 2: Analyze
 
 def analyze_one(sae_path: str, diff_vecs: torch.Tensor,
                 W_head: torch.Tensor, device: str) -> dict:
@@ -270,7 +270,7 @@ def analyze_one(sae_path: str, diff_vecs: torch.Tensor,
     }
 
 
-# ── Stage 3 (optional): Label ─────────────────────────────────────────────────
+# Stage 3 (optional): Label
 
 def label_sae(sae_path: str, diff_vecs: torch.Tensor, texts: list[dict],
               model_id: str, device: str) -> dict:
@@ -307,7 +307,7 @@ def label_sae(sae_path: str, diff_vecs: torch.Tensor, texts: list[dict],
         "Prompt: What is the capital of France?\n"
         "PREFERRED: The capital of France is Paris.\n"
         "DISPREFERRED: I think it might be Lyon.\n\n"
-        "[interpretation]: Safety refusals — declining harmful requests rather than complying."
+        "[interpretation]: Safety refusals - declining harmful requests rather than complying."
     )
 
     sae = load_sae(sae_path, device)
@@ -378,7 +378,7 @@ def label_sae(sae_path: str, diff_vecs: torch.Tensor, texts: list[dict],
     return labels
 
 
-# ── Stage 4: Plot ──────────────────────────────────────────────────────────────
+# Stage 4: Plot
 
 def generate_plots(sweep_results: list[dict], output_path: str):
     """Generate comparison plots across SAE sizes."""
@@ -480,7 +480,7 @@ def generate_plots(sweep_results: list[dict], output_path: str):
     print(f"Saved plot to {output_path}")
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# Main
 
 def main():
     parser = argparse.ArgumentParser(
@@ -513,7 +513,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     Path(args.results_dir).mkdir(parents=True, exist_ok=True)
 
-    # ── Load data ──────────────────────────────────────────────────────────
+    # Load data
     print(f"Loading activations from {args.activations}...")
     data = torch.load(args.activations, map_location="cpu")
     diff_vecs = data["diff"]
@@ -526,12 +526,12 @@ def main():
         print("           Re-run cache_rm_activations.py to include texts. Skipping labeling.")
         args.label = False
 
-    # ── Load reward head ───────────────────────────────────────────────────
+    # Load reward head
     print(f"Loading ArmoRM reward head ({ARMORM_MODEL_ID})...")
     W_head = load_reward_head(ARMORM_MODEL_ID)
     print(f"  reward head shape: {tuple(W_head.shape)}")
 
-    # ── Train + Analyze each size ──────────────────────────────────────────
+    # Train + Analyze each size
     sweep_results = []
 
     for d_sae in args.d_sae_values:
@@ -596,7 +596,7 @@ def main():
         print("\nNo SAEs to analyze. Check checkpoint paths or remove --skip_training.")
         return
 
-    # ── Save combined results ──────────────────────────────────────────────
+    # Save combined results
     # Strip dot_products from the JSON to keep it small; they're in per-SAE files
     save_results = []
     for r in sweep_results:
@@ -608,9 +608,9 @@ def main():
         json.dump(save_results, f, indent=2)
     print(f"\nSaved sweep results to {json_out}")
 
-    # ── Print summary table ────────────────────────────────────────────────
+    # Print summary table
     print(f"\n{'='*90}")
-    print(f"  SAE Vocabulary Size Sweep — {args.dataset}")
+    print(f"  SAE Vocabulary Size Sweep - {args.dataset}")
     print(f"{'='*90}")
     print(f"  {'d_sae':>6}  {'R²':>8}  {'MSE':>10}  {'Cosine':>8}  "
           f"{'Alive':>7}  {'Dead':>6}  {'Sparsity':>9}  {'Fact%':>7}")

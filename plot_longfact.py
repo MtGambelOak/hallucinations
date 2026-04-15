@@ -26,7 +26,7 @@ ATTRIBUTES = [
     'code-instruction-following', 'code-readability',
 ]
 
-# Short display labels — drop the dataset prefix for cleanliness
+# Short display labels - drop the dataset prefix for cleanliness
 SHORT = [
     'helpfulness', 'correctness', 'coherence', 'complexity', 'verbosity',
     'overall score', 'instruction\nfollowing', 'truthfulness', 'honesty',
@@ -52,7 +52,7 @@ labels   = np.array([r["label"] for r in records])
 per_dim  = data["auroc_per_dimension"]
 n        = len(records)
 
-# ── Correlation matrix ─────────────────────────────────────────────────────────
+# Correlation matrix
 n_attr = len(ATTRIBUTES)
 corr = np.ones((n_attr, n_attr))
 for i in range(n_attr):
@@ -75,7 +75,7 @@ row_labels = [SHORT[i] for i in fact_idx]
 col_labels = [SHORT[i] for i in all_col_order]
 n_fact_cols = len(fact_idx)
 
-# ── Figure ─────────────────────────────────────────────────────────────────────
+# Figure
 fig, ax1 = plt.subplots(figsize=(13, 3.5))
 
 im = ax1.imshow(sub, vmin=-1.0, vmax=1.0, cmap="RdBu_r", aspect="auto")
@@ -102,7 +102,7 @@ ax1.set_title(
     "Factuality scores show high correlation with unrelated ArmoRM objectives",
     fontsize=13, fontweight="bold", pad=12
 )
-plt.suptitle(f"Pearson r between ArmoRM reward scores  —  LongFact (n={n:,})",
+plt.suptitle(f"Pearson r between ArmoRM reward scores  -  LongFact (n={n:,})",
              fontsize=10, y=1.02, color="gray")
 
 out = Path("results/longfact_poster.png")
@@ -111,7 +111,7 @@ plt.close()
 print(f"Saved {out}")
 
 
-# ── Plot 2: per-dimension AUROC + probes ──────────────────────────────────────
+# Plot 2: per-dimension AUROC + probes
 PROBE_FILES = {
     "Gemma2-9b (linear)":    "results/longfact_probe_gemma2_9b_linear.json",
     "Gemma2-9b (LoRA KL)":   "results/longfact_probe_gemma2_9b_lora_kl.json",

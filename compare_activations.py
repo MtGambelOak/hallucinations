@@ -3,9 +3,9 @@ Compare ArmoRM dimension correlations across datasets.
 
 Two views:
 1. Dataset-vs-dataset: do the same dimensions rank similarly across benchmarks?
-   (uses aggregated AUROCs — 19 data points per correlation)
+   (uses aggregated AUROCs - 19 data points per correlation)
 2. Dimension-vs-dimension per dataset: within each dataset, do reward dimensions
-   co-vary across examples? (uses per-example records — hundreds of data points)
+   co-vary across examples? (uses per-example records - hundreds of data points)
 """
 
 import json
@@ -129,7 +129,7 @@ def main():
     for name, data in all_data.items():
         result = load_records(data, name)
         if result is None:
-            print(f"\n  [{name}] no records — re-run eval with --save to generate them")
+            print(f"\n  [{name}] no records - re-run eval with --save to generate them")
             continue
 
         rewards, labels = result

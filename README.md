@@ -13,14 +13,14 @@ RLHF is the dominant approach for aligning LLMs, yet even top models hallucinate
 This project investigates two hypotheses:
 
 1. **RLHF reward models predict factuality less reliably than hallucination probes**, and their "correctness" signals are entangled with shallow features like helpfulness and fluency.
-2. **Sparse Autoencoder (SAE) features learned from reward model internals** do not isolate factuality — instead, non-factuality features dominate the directions that contribute to the model's correctness scores.
+2. **Sparse Autoencoder (SAE) features learned from reward model internals** do not isolate factuality - instead, non-factuality features dominate the directions that contribute to the model's correctness scores.
 
 We use [ArmoRM](https://arxiv.org/abs/2406.12845) (a multi-attribute reward model with 19 interpretable reward dimensions) as our primary reward model, and compare it against pretrained hallucination probes from [Obeso et al., 2025](https://arxiv.org/abs/2509.03531) across five evaluation benchmarks.
 
 ## Key Findings
 
 - **Probes outperform ArmoRM on entity-annotated factuality benchmarks** (LongFact, TriviaQA, TruthfulQA), while ArmoRM performs better on human-feedback datasets (HelpSteer2, UltraFeedback).
-- **ArmoRM's reward dimensions are highly correlated** — factuality-related dimensions (correctness, truthfulness, honesty) co-vary strongly with unrelated dimensions like helpfulness.
+- **ArmoRM's reward dimensions are highly correlated** - factuality-related dimensions (correctness, truthfulness, honesty) co-vary strongly with unrelated dimensions like helpfulness.
 - **SAE features labeled as factuality-related do not significantly contribute to ArmoRM's factuality scores** when measured by dot product with the reward head, suggesting the reward model does not cleanly separate factuality from other qualities.
 
 ## Repository Structure
@@ -37,6 +37,10 @@ We use [ArmoRM](https://arxiv.org/abs/2406.12845) (a multi-attribute reward mode
 ├── compare_activations.py       # Cross-dataset dimension correlation analysis
 ├── compare_results.py           # Aggregate AUROC leaderboard across all scorers
 ├── gen_plots.py                 # Generate heatmaps and AUROC bar charts
+├── plot_longfact.py             # Poster-quality LongFact correlation + AUROC plots
+├── plot_sae_routing.py          # SAE routing comparison: do latents map to their objectives?
+├── cross_dataset_sae.py         # Cross-dataset SAE generalization analysis
+├── compare_layers.py            # Cross-layer SAE comparison (final vs intermediate layers)
 ├── demos/
 │   ├── armorm1.py               # ArmoRM usage demo
 │   ├── armorm2.py               # ArmoRM usage demo (alternative)
@@ -47,8 +51,7 @@ We use [ArmoRM](https://arxiv.org/abs/2406.12845) (a multi-attribute reward mode
 ├── train_rm_sae.sh              # SLURM: train SAEs on all cached datasets
 ├── sweep_sae_sizes.sh           # SLURM: d_sae vocabulary size sweep
 ├── label_sae_features.sh        # SLURM: auto-label SAE latents for all datasets
-├── results/                     # Evaluation outputs (JSON + plots)
-├── checkpoints/                 # Trained SAE checkpoints
+├── full_pipeline.sh             # SLURM: complete 9-stage pipeline
 ├── requirements.txt
 └── README.md
 ```
@@ -81,11 +84,11 @@ Update the paths in `setup_session.sh` to match your cluster storage.
 
 ## Pipeline
 
-The pipeline has four stages. Each stage produces artifacts consumed by later stages. All stages can be run via SLURM batch scripts or interactively.
+The pipeline has six stages. Each stage produces artifacts consumed by later stages. All stages can be run via SLURM batch scripts or interactively.
 
-### Stage 1: Evaluation — ArmoRM vs. Probes
+### Stage 1: Evaluation - ArmoRM vs. Probes
 
-Run all evaluations (ArmoRM + 7 probe variants × 5 datasets):
+Run all evaluations (ArmoRM + 7 probe variants x 5 datasets):
 
 ```bash
 sbatch run_all_evals.sh
@@ -118,7 +121,7 @@ sbatch train_rm_sae.sh
 
 ### Stage 3: SAE Vocabulary Size Sweep
 
-Run the full sweep (train + analyze + plot for `d_sae` ∈ {8, 16, 32, 64}) across all datasets:
+Run the full sweep (train + analyze + plot for `d_sae` in {8, 16, 32, 64}) across all datasets:
 
 ```bash
 sbatch sweep_sae_sizes.sh
@@ -149,7 +152,7 @@ Produces `results/sae_sweep_<dataset>.json` and `results/sae_sweep_<dataset>.png
 
 ### Stage 4: Analyze, Label & Visualize
 
-Compute SAE–reward-head alignment and auto-label features:
+Compute SAE-reward-head alignment and auto-label features:
 
 ```bash
 python analyze_sae_directions.py
@@ -167,6 +170,29 @@ python gen_plots.py
 
 This produces `results/heatmaps.png` (reward dimension correlation heatmaps with factuality label correlations) and `results/auroc_bars.png` (sorted AUROC comparison across all scorers).
 
+### Stage 5: Generalization Analysis
+
+Run SAEs trained on one dataset against activations from other datasets to test feature generalization:
+
+```bash
+python cross_dataset_sae.py --activation_dir /path/to/caches
+```
+
+Compare SAEs trained on different layers (final, layer 8, layer 16):
+
+```bash
+python compare_layers.py --dataset ultrafeedback --layers -1 8 16
+```
+
+### Stage 6: Poster Figures
+
+Generate the SAE routing comparison figure (do labeled features map to their "own" ArmoRM objectives?):
+
+```bash
+python plot_sae_routing.py
+python plot_longfact.py
+```
+
 ## Datasets
 
 | Dataset | Type | Labels | Source |
@@ -174,8 +200,8 @@ This produces `results/heatmaps.png` (reward dimension correlation heatmaps with
 | TruthfulQA | QA | Binary (correct/incorrect) | Lin et al., 2022 |
 | TriviaQA | QA | Binary (supported/unsupported) | Obeso et al., 2025 |
 | LongFact | Long-form generation | Entity-level binary | Obeso et al., 2025 |
-| HelpSteer2 | Human feedback | Ordinal correctness (0–4) | Wang et al., 2024 |
-| UltraFeedback | Human feedback | Ordinal truthfulness (1–5) | Cui et al., 2024 |
+| HelpSteer2 | Human feedback | Ordinal correctness (0-4) | Wang et al., 2024 |
+| UltraFeedback | Human feedback | Ordinal truthfulness (1-5) | Cui et al., 2024 |
 
 ## References
 

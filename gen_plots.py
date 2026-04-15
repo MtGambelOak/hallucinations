@@ -1,7 +1,7 @@
 """
 Generate all result plots:
-  1. results/heatmaps.png  — ArmoRM attribute correlation heatmaps + label correlation bars
-  2. results/auroc_bars.png — sorted AUROC bar charts for all scorers across all benchmarks
+  1. results/heatmaps.png  - ArmoRM attribute correlation heatmaps + label correlation bars
+  2. results/auroc_bars.png - sorted AUROC bar charts for all scorers across all benchmarks
 """
 
 import json
@@ -157,7 +157,7 @@ if datasets_loaded:
         ax_heat.set_yticks(range(len(SHORT)))
         ax_heat.set_xticklabels(SHORT, rotation=45, ha="right", fontsize=7)
         ax_heat.set_yticklabels(SHORT, fontsize=7)
-        ax_heat.set_title(f"{name} — Pearson r between reward dimensions (n={len(labels)})",
+        ax_heat.set_title(f"{name} - Pearson r between reward dimensions (n={len(labels)})",
                           fontsize=10, pad=8)
         plt.colorbar(im, ax=ax_heat, fraction=0.03, pad=0.02)
 
@@ -175,7 +175,7 @@ if datasets_loaded:
     plt.close()
     print("Saved results/heatmaps.png")
 else:
-    print("No ArmoRM records found — skipping heatmaps")
+    print("No ArmoRM records found - skipping heatmaps")
 
 
 ARMORM_ATTRS = set(ATTRIBUTES)
@@ -230,7 +230,7 @@ if benchmarks_data:
     plt.close()
     print("Saved results/auroc_bars.png")
 else:
-    print("No AUROC results found — skipping bar charts")
+    print("No AUROC results found - skipping bar charts")
 
 LABEL_SCORERS = {
     "HelpSteer2 (correctness)":           {"ArmoRM": "results/helpsteer2_armorm.json"},
@@ -280,7 +280,7 @@ if label_benchmarks_data:
     plt.close()
     print("Saved results/auroc_bars_labels.png")
 else:
-    print("No label variant files found — skipping label bars")
+    print("No label variant files found - skipping label bars")
 
 LABEL_FILES = {
     "HelpSteer2\n(correctness)":       "results/helpsteer2_armorm.json",
@@ -321,4 +321,4 @@ if label_cols:
     plt.close()
     print("Saved results/entanglement_heatmap.png")
 else:
-    print("No label variant files found — skipping entanglement heatmap")
+    print("No label variant files found - skipping entanglement heatmap")

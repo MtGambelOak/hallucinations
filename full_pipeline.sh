@@ -63,37 +63,37 @@ run_probe() {
 }
 
 echo "========================================"
-echo "STAGE 1b: Probe evals — Gemma2-9b linear"
+echo "STAGE 1b: Probe evals - Gemma2-9b linear"
 echo "========================================"
 run_probe gemma2_9b_linear
 
 echo "========================================"
-echo "STAGE 1b: Probe evals — Gemma2-9b LoRA (KL)"
+echo "STAGE 1b: Probe evals - Gemma2-9b LoRA (KL)"
 echo "========================================"
 run_probe gemma2_9b_lora_lambda_kl_0_05
 
 echo "========================================"
-echo "STAGE 1b: Probe evals — Llama3.1-8b linear"
+echo "STAGE 1b: Probe evals - Llama3.1-8b linear"
 echo "========================================"
 run_probe llama3_1_8b_linear meta-llama/Meta-Llama-3.1-8B-Instruct
 
 echo "========================================"
-echo "STAGE 1b: Probe evals — Llama3.1-8b LoRA (KL)"
+echo "STAGE 1b: Probe evals - Llama3.1-8b LoRA (KL)"
 echo "========================================"
 run_probe llama3_1_8b_lora_lambda_kl_0_05 meta-llama/Meta-Llama-3.1-8B-Instruct
 
 echo "========================================"
-echo "STAGE 1b: Probe evals — Llama3.1-8b LoRA (LM)"
+echo "STAGE 1b: Probe evals - Llama3.1-8b LoRA (LM)"
 echo "========================================"
 run_probe llama3_1_8b_lora_lambda_lm_0_01 meta-llama/Meta-Llama-3.1-8B-Instruct
 
 echo "========================================"
-echo "STAGE 1b: Probe evals — Qwen2.5-7b linear"
+echo "STAGE 1b: Probe evals - Qwen2.5-7b linear"
 echo "========================================"
 run_probe qwen2_5_7b_linear Qwen/Qwen2.5-7B-Instruct
 
 echo "========================================"
-echo "STAGE 1b: Probe evals — Qwen2.5-7b LoRA (KL)"
+echo "STAGE 1b: Probe evals - Qwen2.5-7b LoRA (KL)"
 echo "========================================"
 run_probe qwen2_5_7b_lora_lambda_kl_0_05 Qwen/Qwen2.5-7B-Instruct
 
@@ -106,7 +106,7 @@ echo "========================================"
 for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafeedback hh_rlhf; do
     OUTPUT=$SCRATCH/${DATASET}_diff.pt
     if [ -f "$OUTPUT" ]; then
-        echo "  $DATASET — cache exists, skipping"
+        echo "  $DATASET - cache exists, skipping"
         continue
     fi
     echo "  Caching $DATASET..."
@@ -124,7 +124,7 @@ SWEEP_ARGS="--d_sae_values 8 16 32 64 --k 8 --steps 30000 --batch_size 512 --lr 
 for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafeedback hh_rlhf; do
     CACHE=$SCRATCH/${DATASET}_diff.pt
     if [ ! -f "$CACHE" ]; then
-        echo "  Skipping $DATASET — cache not found"
+        echo "  Skipping $DATASET - cache not found"
         continue
     fi
     echo "  Sweep: $DATASET"
@@ -153,11 +153,11 @@ for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafe
     CACHE=$SCRATCH/${DATASET}_diff.pt
     SAE=checkpoints/rm_sae_${DATASET}
     if [ ! -f "$CACHE" ]; then
-        echo "  Skipping $DATASET — cache not found"
+        echo "  Skipping $DATASET - cache not found"
         continue
     fi
     if [ ! -d "$SAE" ]; then
-        echo "  Skipping $DATASET — SAE checkpoint not found at $SAE"
+        echo "  Skipping $DATASET - SAE checkpoint not found at $SAE"
         continue
     fi
     echo "  Labeling: $DATASET"
@@ -176,6 +176,25 @@ echo "========================================"
 python compare_results.py
 python compare_activations.py
 python gen_plots.py
+python plot_sae_routing.py
+
+# ════════════════════════════════════════════════════════════════════════
+# STAGE 7: Cross-dataset SAE generalization
+# ════════════════════════════════════════════════════════════════════════
+echo "========================================"
+echo "STAGE 8: Cross-dataset SAE generalization"
+echo "========================================"
+python cross_dataset_sae.py --activation_dir $SCRATCH
+
+# ════════════════════════════════════════════════════════════════════════
+# STAGE 8: Cross-layer SAE comparison
+# ════════════════════════════════════════════════════════════════════════
+echo "========================================"
+echo "STAGE 10: Cross-layer SAE comparison"
+echo "========================================"
+for DATASET in ultrafeedback helpsteer2; do
+    python compare_layers.py --dataset $DATASET --activation_dir $SCRATCH
+done
 
 echo "========================================"
 echo "ALL DONE"

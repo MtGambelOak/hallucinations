@@ -51,7 +51,7 @@ DEFAULT_SUBSETS  = {"triviaqa": "Meta-Llama-3.1-8B-Instruct", "longfact": "gemma
 DEFAULT_MODEL_ID = {"armorm": "RLHFlow/ArmoRM-Llama3-8B-v0.1", "probe": "google/gemma-2-9b-it"}
 
 
-# ── Dataset loaders ────────────────────────────────────────────────────────────
+# Dataset loaders
 # Each returns a list of dicts with at least {"prompt", "response"}.
 # Binary datasets add "label" (0/1); ordinal adds "correctness" (0-4).
 # TriviaQA adds "exact_answer"; LongFact adds "entities" (list of span dicts).
@@ -141,7 +141,7 @@ LOADERS = {
 }
 
 
-# ── AUROC ──────────────────────────────────────────────────────────────────────
+# AUROC
 
 def compute_auroc(scores, labels, dataset):
     if dataset in ORDINAL_DATASETS:
@@ -159,7 +159,7 @@ def auroc_scalar(auroc_results):
     return auroc_results.get("auroc") or auroc_results.get("auroc_mean")
 
 
-# ── ArmoRM ─────────────────────────────────────────────────────────────────────
+# ArmoRM
 
 class ArmoRM:
     def __init__(self, model_id):
@@ -212,7 +212,7 @@ def dim_aurocs(rewards_all, labels, dataset):
     return out
 
 
-# ── Probe ──────────────────────────────────────────────────────────────────────
+# Probe
 
 def load_probe(probe_dir):
     with open(probe_dir / "probe_config.json") as f:
@@ -300,7 +300,7 @@ def run_probe(items, dataset, llm, tokenizer, probe, probe_layer):
     return np.array(scores), np.array(labels)
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# Main
 
 def main(args):
     loader = LOADERS[args.dataset]

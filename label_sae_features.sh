@@ -22,11 +22,11 @@ for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafe
     CACHE=$SCRATCH/${DATASET}_diff.pt
     SAE=checkpoints/rm_sae_${DATASET}
     if [ ! -f "$CACHE" ]; then
-        echo "Skipping $DATASET — cache not found"
+        echo "Skipping $DATASET - cache not found"
         continue
     fi
     if [ ! -d "$SAE" ]; then
-        echo "Skipping $DATASET — SAE checkpoint not found at $SAE"
+        echo "Skipping $DATASET - SAE checkpoint not found at $SAE"
         continue
     fi
     echo "========================================"

@@ -34,7 +34,7 @@ def print_one(data, labels, args, out):
     w(f"  d_sae={d_sae}  n_attr={data['n_attr']}")
     w(f"{'='*70}")
 
-    # ── Per-latent: top attributes ─────────────────────────────────────────
+    # Per-latent: top attributes
     w(f"\n{'='*70}")
     w(f"  TOP {args.top_attr} ArmoRM ATTRIBUTES PER SAE LATENT")
     w(f"{'='*70}")
@@ -44,7 +44,7 @@ def print_one(data, labels, args, out):
         for i in top:
             w(f"      {attrs[i]}  dot={C[j,i]:+.4f}")
 
-    # ── Per-attribute: top latents ─────────────────────────────────────────
+    # Per-attribute: top latents
     w(f"\n{'='*70}")
     w(f"  TOP {args.top_lat} SAE LATENTS PER ArmoRM ATTRIBUTE")
     w(f"{'='*70}")

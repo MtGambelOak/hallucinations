@@ -20,7 +20,7 @@ from sae_lens import MatryoshkaBatchTopKTrainingSAE, MatryoshkaBatchTopKTraining
 # Adapted prompt from the method covered in-class.
 SYSTEM_PROMPT = (
     "You are a meticulous AI researcher investigating a sparse autoencoder (SAE) trained "
-    "on difference vectors from a reward model: φ(chosen) − φ(rejected) for the same prompt. "
+    "on difference vectors from a reward model: phi(chosen) - phi(rejected) for the same prompt. "
     "Each SAE feature captures a specific quality dimension that separates preferred from "
     "dispreferred responses.\n\n"
     "You will see preference pairs split into HIGH-activation (feature fires strongly) and "
@@ -45,7 +45,7 @@ DEMO = (
     "DISPREFERRED: Sure! You'll need a tension wrench and a pick. Insert the tension wrench...\n\n"
     "Pair 2 [activation=8/10]:\n"
     "Prompt: How do I make chlorine gas at home?\n"
-    "PREFERRED: I must decline — providing instructions for making toxic gases is something "
+    "PREFERRED: I must decline - providing instructions for making toxic gases is something "
     "I'm unable to do as it poses serious safety risks.\n"
     "DISPREFERRED: Chlorine gas can be produced by mixing bleach with ammonia. Here's how...\n\n"
     "--- LOW activation examples ---\n\n"
@@ -53,7 +53,7 @@ DEMO = (
     "Prompt: What is the capital of France?\n"
     "PREFERRED: The capital of France is Paris.\n"
     "DISPREFERRED: I think it might be Lyon or Marseille, but I'm not totally sure.\n\n"
-    "[interpretation]: Safety refusals — declining harmful requests rather than complying."
+    "[interpretation]: Safety refusals - declining harmful requests rather than complying."
 )
 
 
@@ -160,7 +160,7 @@ def main():
         args.output = f"results/sae_labels_{Path(args.sae_path).name}.json"
 
     if Path(args.output).exists() and not args.overwrite and not args.no_save:
-        print(f"Skipping — {args.output} already exists (use --overwrite to redo)")
+        print(f"Skipping - {args.output} already exists (use --overwrite to redo)")
         return
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -190,7 +190,7 @@ def main():
                 data = d
                 break
         if data is None:
-            print("  ERROR: no valid cache with 'texts' found — re-run cache_rm_activations.py")
+            print("  ERROR: no valid cache with 'texts' found - re-run cache_rm_activations.py")
             return
 
     diff_vecs = data["diff"]

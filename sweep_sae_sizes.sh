@@ -23,7 +23,7 @@ SWEEP_ARGS="--d_sae_values 8 16 32 64 --k 8 --steps 30000 --batch_size 512 --lr 
 for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafeedback hh_rlhf; do
     CACHE=$SCRATCH/${DATASET}_diff.pt
     if [ ! -f "$CACHE" ]; then
-        echo "Skipping $DATASET — cache not found at $CACHE"
+        echo "Skipping $DATASET - cache not found at $CACHE"
         continue
     fi
     echo "========================================"

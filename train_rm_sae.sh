@@ -23,7 +23,7 @@ for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafe
     # final layer
     CACHE=$SCRATCH/${DATASET}_diff.pt
     if [ ! -f "$CACHE" ]; then
-        echo "Skipping $DATASET (final layer) — cache not found"
+        echo "Skipping $DATASET (final layer) - cache not found"
     else
         echo "Training SAE on $DATASET (final layer)..."
         python train_rm_sae.py \
@@ -36,7 +36,7 @@ for DATASET in helpsteer2_factuality helpsteer2 ultrafeedback_factuality ultrafe
     for LAYER in 8 16; do
         CACHE=$SCRATCH/${DATASET}_layer${LAYER}_diff.pt
         if [ ! -f "$CACHE" ]; then
-            echo "Skipping $DATASET layer $LAYER — cache not found"
+            echo "Skipping $DATASET layer $LAYER - cache not found"
             continue
         fi
         echo "Training SAE on $DATASET (layer $LAYER)..."
