@@ -81,11 +81,12 @@ def compute_routing(dot_products: np.ndarray, latent_idx: int) -> dict:
     row = np.abs(dot_products[latent_idx])
     total = row.sum()
     if total == 0:
-        return {"factuality": 0.0, "safety": 0.0, "other": 0.0}
+        return {"factuality": 0.0, "safety": 0.0, "other": 0.0, "total": 0.0}
     return {
         "factuality": float(row[FACT_MASK].sum() / total * 100),
         "safety":     float(row[SAFETY_MASK].sum() / total * 100),
         "other":      float(row[OTHER_MASK].sum() / total * 100),
+        "total":      float(total),
     }
 
 
@@ -158,6 +159,7 @@ def draw_section(ax, entries, primary_key, primary_color, secondary_key,
     primary  = [e["routing"][primary_key]   for e in entries]
     second   = [e["routing"][secondary_key] for e in entries]
     tertiary = [e["routing"][tertiary_key]  for e in entries]
+    totals   = [e["routing"]["total"]       for e in entries]
 
     # Stacked bars: primary, then secondary, then tertiary
     ax.barh(y_pos, primary, color=primary_color,
@@ -177,6 +179,11 @@ def draw_section(ax, entries, primary_key, primary_color, secondary_key,
         if tertiary[i] > 6:
             ax.text(cum + tertiary[i] / 2, i, f"{tertiary[i]:.0f}%",
                     ha="center", va="center", fontsize=8)
+
+    # Total |dot product| annotations (right of each bar)
+    for i in range(n):
+        ax.text(101.5, i, f"{totals[i]:.3f}",
+                ha="left", va="center", fontsize=7, color="#555555")
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(labels, fontsize=9)
@@ -223,12 +230,12 @@ def main():
 
     fig_height = max(8, 0.45 * (n_fact + n_safe) + 5)
     fig, (ax1, ax2) = plt.subplots(
-        2, 1, figsize=(12, fig_height),
+        2, 1, figsize=(13, fig_height),
         gridspec_kw={"height_ratios": [max(n_fact, 1), max(n_safe, 1)]},
     )
     fig.subplots_adjust(hspace=0.45)
 
-    # Factuality section 
+    # Factuality section
     ax1.set_title(f"Factuality-labeled SAE latents (n = {n_fact})",
                   fontsize=12, fontweight="bold", pad=10)
     draw_section(ax1, factuality_entries,
@@ -237,7 +244,7 @@ def main():
                  tertiary_key="other",     tertiary_color=ORANGE,
                  baseline_pct=uniform_fact)
 
-    # Safety section 
+    # Safety section
     ax2.set_title(f"Safety-labeled SAE latents (n = {n_safe})",
                   fontsize=12, fontweight="bold", pad=10)
     draw_section(ax2, safety_entries,
@@ -247,11 +254,11 @@ def main():
                  baseline_pct=uniform_safe)
     ax2.set_xlabel("Share of total |dot product| contribution (%)", fontsize=11)
 
-    # Supertitle 
+    # Supertitle
     fig.suptitle("Do SAE latents contribute to their \"own\" ArmoRM objective?",
                  fontsize=14, fontweight="bold", y=1.01)
 
-    # Legend 
+    # Legend
     legend_elements = [
         Patch(facecolor=BLUE,   label="Correctness / Truthfulness / Honesty"),
         Patch(facecolor=ORANGE, label="All other ArmoRM objectives"),
@@ -262,9 +269,10 @@ def main():
     fig.legend(handles=legend_elements, loc="upper center", ncol=3, fontsize=9,
                bbox_to_anchor=(0.5, 0.995))
 
-    # Footnote 
+    # Footnote
     footnote = (
-        "Bars show share of total |dot product| across all 19 ArmoRM objectives.\n"
+        "Bars show share of total |dot product| across all 19 ArmoRM objectives. "
+        "Numbers at right show total |dot product| magnitude (sum of |W_dec_j . W_head_i| over all i).\n"
         "SAE keys: hs2=helpsteer2, hs2f=hs2_factuality, hh=hh_rlhf, "
         "uf=ultrafeedback, uff=uf_factuality."
     )
