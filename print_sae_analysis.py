@@ -42,7 +42,7 @@ def print_one(data, labels, args, out):
         top = np.argsort(C[j])[::-1][:args.top_attr]
         w(f"  {latent_str(j)}")
         for i in top:
-            w(f"      {attrs[i]}  dot={C[j,i]:+.4f}")
+            w(f"      {attrs[i]}  cos={C[j,i]:+.4f}")
 
     # Per-attribute: top latents
     w(f"\n{'='*70}")
@@ -53,7 +53,7 @@ def print_one(data, labels, args, out):
         w(f"\n  {attr}")
         w(f"  {'-'*60}")
         for j in top:
-            w(f"    {latent_str(j)}  dot={C[j,i]:+.4f}")
+            w(f"    {latent_str(j)}  cos={C[j,i]:+.4f}")
 
 
 def main():

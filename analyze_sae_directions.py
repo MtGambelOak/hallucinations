@@ -6,6 +6,7 @@ reward-head direction.
 import argparse
 import json
 import torch
+import torch.nn.functional as F
 import numpy as np
 from pathlib import Path
 from safetensors.torch import load_file
@@ -75,17 +76,19 @@ def analyze_one(sae_path: str, W_head: torch.Tensor, output: str):
     d_sae, d_in = W_dec.shape
     print(f"  d_sae={d_sae}, d_in={d_in}")
 
-    # raw dot products: C[k,j] = w_j · d_k
-    C = (W_dec @ W_head.T).numpy()  # (d_sae, n_attr)
+    # cosine similarity: C[k,j] = cos(d_k, w_j)
+    W_dec_norm = F.normalize(W_dec, dim=1)
+    W_head_norm = F.normalize(W_head, dim=1)
+    C = (W_dec_norm @ W_head_norm.T).numpy()  # (d_sae, n_attr)
 
-    print(f"  Dot product range:  [{C.min():.3f}, {C.max():.3f}]")
+    print(f"  Cosine similarity range:  [{C.min():.3f}, {C.max():.3f}]")
 
     results = {
         "sae_path":   sae_path,
         "attributes": ATTRIBUTES,
         "d_sae":      d_sae,
         "n_attr":     len(ATTRIBUTES),
-        "dot_products": C.tolist(),  # w_j · d_k
+        "dot_products": C.tolist(),  # cosine similarities (renamed key kept for compat)
     }
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     with open(output, "w") as f:
