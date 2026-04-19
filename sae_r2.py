@@ -82,6 +82,8 @@ def analyze(sae_name: str, sae: MatryoshkaBatchTopKTrainingSAE,
     N = len(diff)
     all_actual = []
     all_recon  = []
+    all_diff   = []
+    all_recon_acts = []
 
     with torch.no_grad():
         for start in range(0, N, batch_size):
@@ -92,13 +94,27 @@ def analyze(sae_name: str, sae: MatryoshkaBatchTopKTrainingSAE,
             recon_chunk = (recon @ W_head.T).numpy()
             all_actual.append(actual_chunk)
             all_recon.append(recon_chunk)
+            all_diff.append(chunk)
+            all_recon_acts.append(recon)
 
-    actual      = np.concatenate(all_actual, axis=0)   # (N, 19)
-    recon_scores = np.concatenate(all_recon,  axis=0)  # (N, 19)
+    actual       = np.concatenate(all_actual, axis=0)    # (N, 19)
+    recon_scores = np.concatenate(all_recon,  axis=0)    # (N, 19)
+    diff_acts    = torch.cat(all_diff,       dim=0)      # (N, d_in)
+    recon_acts   = torch.cat(all_recon_acts, dim=0)      # (N, d_in)
+
+    # activation-space reconstruction metrics
+    residual      = diff_acts - recon_acts
+    mse           = float(residual.pow(2).sum(dim=-1).mean())
+    diff_norm     = float(diff_acts.norm(dim=-1).mean())
+    recon_norm    = float(recon_acts.norm(dim=-1).mean())
+    normalized_mse = float(residual.pow(2).sum(dim=-1).mean() / diff_acts.pow(2).sum(dim=-1).mean())
+    var_explained = float(1 - residual.pow(2).sum() / (diff_acts - diff_acts.mean(0)).pow(2).sum())
 
     print(f"\n{'='*65}")
     print(f"  {sae_name}  (n={N})")
     print(f"{'='*65}")
+    print(f"\n  Activation-space reconstruction:")
+    print(f"  MSE={mse:.4f}  normalized_mse={normalized_mse:.4f}  diff_norm={diff_norm:.4f}  recon_norm={recon_norm:.4f}  var_explained={var_explained:.4f}")
     print(f"\n  R² (reconstruction fidelity per reward dimension):")
     print(f"  {'Attribute':<45}  R²")
     print(f"  {'-'*55}")
@@ -109,7 +125,16 @@ def analyze(sae_name: str, sae: MatryoshkaBatchTopKTrainingSAE,
         print(f"  {attr:<45}  {rv:+.4f}")
     print(f"  {'-'*55}")
     print(f"  {'mean R²':<45}  {np.nanmean(r2s):+.4f}")
-    return {"r2_per_dim": dict(zip(ATTRIBUTES, [float(v) for v in r2s])), "mean_r2": float(np.nanmean(r2s)), "n": N}
+    return {
+        "r2_per_dim": dict(zip(ATTRIBUTES, [float(v) for v in r2s])),
+        "mean_r2": float(np.nanmean(r2s)),
+        "mse": mse,
+        "normalized_mse": normalized_mse,
+        "diff_norm": diff_norm,
+        "recon_norm": recon_norm,
+        "var_explained": var_explained,
+        "n": N,
+    }
 
 
 
@@ -145,7 +170,16 @@ def main():
     Path("results/sae_r2.json").write_text(json.dumps(results, indent=2))
     print("\nSaved to results/sae_r2.json")
     plot_r2(results)
+    plot_mse(results)
 
+
+SAE_DISPLAY_NAMES = {
+    "rm_sae_helpsteer2":               "HelpSteer2 Overall Score",
+    "rm_sae_helpsteer2_factuality":    "HelpSteer2 Factuality",
+    "rm_sae_ultrafeedback":            "UltraFeedback Overall Score",
+    "rm_sae_ultrafeedback_factuality": "UltraFeedback Factuality",
+    "rm_sae_hh_rlhf":                  "HH-RLHF",
+}
 
 def plot_r2(results: dict):
     names = list(results.keys())
@@ -159,14 +193,29 @@ def plot_r2(results: dict):
     for ax, name in zip(axes[:-1], names):
         r2s = [results[name]["r2_per_dim"][a] for a in ATTRIBUTES]
         all_r2s.append(r2s)
-        bars = ax.bar(range(len(ATTRIBUTES)), r2s)
+        ax.bar(range(len(ATTRIBUTES)), r2s)
         ax.set_xticks(range(len(ATTRIBUTES)))
         ax.set_xticklabels(attrs_short, rotation=45, ha="right", fontsize=8)
         ax.set_ylim(0, 1)
         ax.set_ylabel("R²")
-        ax.set_title(name)
+        ax.set_title(SAE_DISPLAY_NAMES.get(name, name))
         ax.axhline(np.mean(r2s), color="red", linestyle="--", linewidth=0.8, label=f"mean={np.mean(r2s):.3f}")
         ax.legend(fontsize=8)
+
+        # individual plot
+        fig_i, ax_i = plt.subplots(figsize=(12, 4))
+        ax_i.bar(range(len(ATTRIBUTES)), r2s)
+        ax_i.set_xticks(range(len(ATTRIBUTES)))
+        ax_i.set_xticklabels(attrs_short, rotation=45, ha="right", fontsize=8)
+        ax_i.set_ylim(0, 1)
+        ax_i.set_ylabel("R²")
+        ax_i.set_title(SAE_DISPLAY_NAMES.get(name, name))
+        ax_i.axhline(np.mean(r2s), color="red", linestyle="--", linewidth=0.8, label=f"mean={np.mean(r2s):.3f}")
+        ax_i.legend(fontsize=8)
+        plt.tight_layout()
+        slug = name.replace("rm_sae_", "")
+        plt.savefig(f"results/sae_r2_{slug}.png", dpi=150, bbox_inches="tight")
+        plt.close(fig_i)
 
     # average across all SAEs
     avg_r2s = np.mean(all_r2s, axis=0)
@@ -179,11 +228,42 @@ def plot_r2(results: dict):
     axes[-1].axhline(np.mean(avg_r2s), color="red", linestyle="--", linewidth=0.8, label=f"mean={np.mean(avg_r2s):.3f}")
     axes[-1].legend(fontsize=8)
 
+    # separate average-only plot
+    fig_avg, ax_avg = plt.subplots(figsize=(12, 4))
+    ax_avg.bar(range(len(ATTRIBUTES)), avg_r2s)
+    ax_avg.set_xticks(range(len(ATTRIBUTES)))
+    ax_avg.set_xticklabels(attrs_short, rotation=45, ha="right", fontsize=8)
+    ax_avg.set_ylim(0, 1)
+    ax_avg.set_ylabel("R²")
+    ax_avg.set_title("Average R² across all SAEs")
+    ax_avg.axhline(float(np.mean(avg_r2s)), color="red", linestyle="--", linewidth=0.8, label=f"mean={np.mean(avg_r2s):.3f}")
+    ax_avg.legend(fontsize=8)
+    plt.tight_layout()
+    plt.savefig("results/sae_r2_average.png", dpi=150, bbox_inches="tight")
+    plt.close(fig_avg)
+
     fig.suptitle("R² per Reward Dimension", fontsize=14, fontweight="bold", y=1.01)
     plt.tight_layout()
     out = "results/sae_r2.png"
     plt.savefig(out, dpi=150, bbox_inches="tight")
     print(f"Saved plot to {out}")
+
+
+def plot_mse(results: dict):
+    names = list(results.keys())
+    n_sae = len(names)
+    display_names = [SAE_DISPLAY_NAMES.get(n, n) for n in names]
+    vals = [results[n]["normalized_mse"] for n in names]
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.bar(range(n_sae), vals)
+    ax.set_xticks(range(n_sae))
+    ax.set_xticklabels(display_names, rotation=30, ha="right", fontsize=8)
+    ax.set_ylabel("MSE / mean(‖diff‖²)")
+    ax.set_title("Normalized reconstruction MSE per SAE")
+    plt.tight_layout()
+    plt.savefig("results/sae_mse_summary.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("Saved plot to results/sae_mse_summary.png")
 
 
 if __name__ == "__main__":

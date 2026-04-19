@@ -5,14 +5,195 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Confidently Incorrect — Results</title>
   <style>
-    body { font-family: sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #222; }
-    h1 { font-size: 1.6em; }
-    p.subtitle { color: #666; margin-top: -10px; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.75em; margin-bottom: 4px; }
+    h2 { font-size: 1.25em; margin-top: 48px; border-bottom: 2px solid #e0e0e0; padding-bottom: 6px; }
+    h3 { font-size: 1em; margin-top: 28px; color: #444; }
+    p.subtitle { color: #666; margin-top: 0; margin-bottom: 20px; }
+    p.abstract {
+      background: #f5f5f5;
+      border-left: 4px solid #555;
+      padding: 14px 18px;
+      margin: 24px 0;
+      border-radius: 0 4px 4px 0;
+      color: #333;
+    }
+    .figure {
+      margin: 28px 0;
+      text-align: center;
+    }
+    .figure img {
+      max-width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+    .figure figcaption {
+      margin-top: 10px;
+      font-size: 0.875em;
+      color: #555;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 28px 0;
+    }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+    .tag {
+      display: inline-block;
+      background: #eef;
+      color: #336;
+      font-size: 0.78em;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-right: 4px;
+    }
+    a { color: #2255cc; }
+    hr { border: none; border-top: 1px solid #e8e8e8; margin: 48px 0; }
+    .figure-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .figure-grid figure { margin: 0; text-align: center; }
+    .figure-grid figure img { width: 100%; border: 1px solid #ddd; border-radius: 6px; }
+    .figure-grid figcaption { font-size: 0.85em; color: #555; margin-top: 6px; }
   </style>
 </head>
 <body>
-  <h1>Confidently Incorrect: Do RMs Reward Making Stuff Up?</h1>
-  <p class="subtitle">Lucas Pearce &amp; Christian Rogers &mdash; CS 6966, University of Utah, 2026</p>
-  <p>Full results coming soon.</p>
+
+  <h1>Confidently Incorrect: Do Reward Models Reward Making Stuff Up?</h1>
+  <p class="subtitle">
+    Lucas Pearce &amp; Christian Rogers &mdash; CS 6966, University of Utah, Spring 2026
+    &nbsp;|&nbsp;
+    <a href="poster.pdf">Poster</a>
+    &nbsp;|&nbsp;
+    <a href="https://github.com/MtGambelOak/hallucinations">GitHub</a>
+  </p>
+
+  <hr>
+
+  <h2>1. AUROC Comparison: Probes vs. ArmoRM</h2>
+  <p>We evaluate both scorers on five datasets:</p>
+  <ul>
+    <li>TruthfulQA (short-form QA)</li>
+    <li>TriviaQA (short-form QA)</li>
+    <li>LongFact (long-form generation)</li>
+    <li>HelpSteer2 (human-annotated feedback dataset)</li>
+    <li>UltraFeedback (LLM-annotated feedback dataset)</li>
+  </ul>
+
+  <div class="figure-grid">
+    <figure>
+      <img src="images/auroc_truthfulqa.png" alt="TruthfulQA AUROC">
+    </figure>
+    <figure>
+      <img src="images/auroc_triviaqa.png" alt="TriviaQA AUROC">
+    </figure>
+    <figure>
+      <img src="images/auroc_longfact.png" alt="LongFact AUROC">
+    </figure>
+    <figure>
+      <img src="images/auroc_helpsteer2_correctness.png" alt="HelpSteer2 AUROC">
+    </figure>
+    <figure>
+      <img src="images/auroc_ultrafeedback_truthfulness.png" alt="UltraFeedback AUROC">
+    </figure>
+  </div>
+
+  <h3>Takeaways</h3>
+  <ul>
+    <li>Factuality-related reward dimensions are typically better classifiers of factuality labels (both ground-truth and human/LLM annotators) when compared to non-factuality related dimensions, but dimensions such as helpfulness are not far behind, and still often reliable classifiers.</li>
+    <li>Probes are not as effective as ArmoRM in classifying human/LLM annotated labels, indicating there is a mismatch between what the probes' encodings of factuality and ArmoRM.</li>
+    <li>Probes perform much better than ArmoRM on Longfact due to the probes operating on an entity level basis (same as Longfact). The granularity provided by being able to evaluate the factuality of individual statements may be what makes RLFR more effective than RLHF.</li>
+  </ul>
+
+  <hr>
+
+  <h2>2. Reward Dimension Correlations</h2>
+  <p>
+    ArmoRM produces 19 reward scores spanning helpfulness, correctness, coherence, safety, and code quality. We examine how the activations of these dimensions correlate with each other, as a high level of correlation could result in "interference" where a high score in one dimension leads to a high score in another, even if that should not be the case.
+  </p>
+
+  <div class="figure-grid">
+    <figure>
+      <img src="images/heatmap_truthfulqa.png" alt="TruthfulQA heatmap">
+    </figure>
+    <figure>
+      <img src="images/heatmap_triviaqa.png" alt="TriviaQA heatmap">
+    </figure>
+    <figure>
+      <img src="images/heatmap_longfact.png" alt="LongFact heatmap">
+    </figure>
+    <figure>
+      <img src="images/heatmap_helpsteer2_correctness.png" alt="HelpSteer2 heatmap">
+    </figure>
+    <figure>
+      <img src="images/heatmap_ultrafeedback_truthfulness.png" alt="UltraFeedback heatmap">
+    </figure>
+  </div>
+
+  <h3>Takeaways</h3>
+  <ul>
+    <li>There is a moderate to high correlation between reward dimensions for ArmoRM, but patterns vary by dataset.</li>
+    <li>Activations for is_safe show very little correlation between other rewards across all datasets. This may imply that ArmoRM does a good job of keeping its is_safe score independent of other factors. Complexity and verbosity follow a similar pattern.</li>
+    <li>Longfact shows a less drastic but still existing pattern of correlation between rewards.</li>
+  </ul>
+
+  <hr>
+
+  <h2>3. SAE Analysis</h2>
+  <p>
+    We train Sparse Autoencoders (SAEs) on ArmoRM's hidden state difference vectors at the final layer (chosen &minus; rejected) to decompose reward representations into sparse, interpretable features. Each SAE has 32 latents; we label them using Gemma2-9b-it and measure how well they reconstruct each reward dimension.
+  </p>
+
+  <div class="figure-grid">
+    <figure>
+      <img src="images/sae_r2_average.png" alt="Average SAE R²">
+      <figcaption>Average R² across all SAEs.</figcaption>
+    </figure>
+    <figure>
+      <img src="images/sae_r2_helpsteer2.png" alt="HelpSteer2 SAE R²">
+    </figure>
+    <figure>
+      <img src="images/sae_r2_helpsteer2_factuality.png" alt="HelpSteer2 Factuality SAE R²">
+    </figure>
+    <figure>
+      <img src="images/sae_r2_ultrafeedback.png" alt="UltraFeedback SAE R²">
+    </figure>
+    <figure>
+      <img src="images/sae_r2_ultrafeedback_factuality.png" alt="UltraFeedback Factuality SAE R²">
+    </figure>
+    <figure>
+      <img src="images/sae_r2_hh_rlhf.png" alt="HH-RLHF SAE R²">
+    </figure>
+  </div>
+
+  <h3>Takeaways</h3>
+  <ul>
+    <li>Most of the SAEs do a good job reconstructing rewards, except for the UltraFeedback truthfulness score and HH-RLHF.</li>
+    <li>These discrepancies may be explained by ArmoRM's dimensions not being trained for HH-RLHF, but we are not sure why the UltraFeedback truthfulness reconstruction is so poor for most dimensions.</li>
+    <li>Overall, these results validate the SAE features being semi-faithful representations of ArmoRM's internal features it uses as rewards.</li>
+  </ul>
+
+  <div class="figure-grid">
+    <figure>
+      <img src="images/sae_mse_summary.png" alt="SAE reconstruction metrics">
+      <figcaption>MSE reconstruction error.</figcaption>
+    </figure>
+  </div>
+
 </body>
 </html>

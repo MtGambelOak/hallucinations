@@ -139,38 +139,60 @@ for name, path in DATASETS.items():
     if rewards is not None:
         datasets_loaded[name] = (rewards, labels)
 
-if datasets_loaded:
-    n_ds = len(datasets_loaded)
-    fig = plt.figure(figsize=(22, 6 * n_ds))
-    outer = gridspec.GridSpec(n_ds, 1, hspace=0.5)
+def _slug(name):
+    return name.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("/", "_")
 
-    for row, (name, (rewards, labels)) in enumerate(datasets_loaded.items()):
-        ordinal = name in ORDINAL
-        mat = corr_matrix(rewards)
-        lc  = label_corrs(rewards, labels, ordinal)
-
-        inner = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=outer[row],
+def _draw_heatmap_row(fig, rewards, labels, name, ordinal, subplot_spec=None):
+    if subplot_spec is not None:
+        inner = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=subplot_spec,
                                                  width_ratios=[3, 1], wspace=0.35)
         ax_heat = fig.add_subplot(inner[0])
-        im = ax_heat.imshow(mat, vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
-        ax_heat.set_xticks(range(len(SHORT)))
-        ax_heat.set_yticks(range(len(SHORT)))
-        ax_heat.set_xticklabels(SHORT, rotation=45, ha="right", fontsize=7)
-        ax_heat.set_yticklabels(SHORT, fontsize=7)
-        ax_heat.set_title(f"{name} - Pearson r between reward dimensions (n={len(labels)})",
-                          fontsize=10, pad=8)
-        plt.colorbar(im, ax=ax_heat, fraction=0.03, pad=0.02)
+        ax_bar  = fig.add_subplot(inner[1])
+    else:
+        gs = gridspec.GridSpec(1, 2, figure=fig, width_ratios=[3, 1], wspace=0.35)
+        ax_heat = fig.add_subplot(gs[0])
+        ax_bar  = fig.add_subplot(gs[1])
 
-        ax_bar = fig.add_subplot(inner[1])
-        colors = ["#d73027" if v > 0 else "#4575b4" for v in lc]
-        ax_bar.barh(range(len(ATTRIBUTES)), lc, color=colors)
-        ax_bar.set_yticks(range(len(ATTRIBUTES)))
-        ax_bar.set_yticklabels(SHORT, fontsize=7)
-        ax_bar.axvline(0, color="black", linewidth=0.8)
-        ax_bar.set_xlabel(f"{'Spearman' if ordinal else 'Pearson'} r with label", fontsize=8)
-        ax_bar.set_title("Corr. with factuality label", fontsize=9, pad=8)
-        ax_bar.invert_yaxis()
+    mat = corr_matrix(rewards)
+    lc  = label_corrs(rewards, labels, ordinal)
 
+    im = ax_heat.imshow(mat, vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
+    ax_heat.set_xticks(range(len(SHORT)))
+    ax_heat.set_yticks(range(len(SHORT)))
+    ax_heat.set_xticklabels(SHORT, rotation=45, ha="right", fontsize=7)
+    ax_heat.set_yticklabels(SHORT, fontsize=7)
+    ax_heat.set_title(f"{name} — Pearson r between reward dimensions (n={len(labels)})",
+                      fontsize=10, pad=8)
+    plt.colorbar(im, ax=ax_heat, fraction=0.03, pad=0.02)
+
+    colors = ["#d73027" if v > 0 else "#4575b4" for v in lc]
+    ax_bar.barh(range(len(ATTRIBUTES)), lc, color=colors)
+    ax_bar.set_yticks(range(len(ATTRIBUTES)))
+    ax_bar.set_yticklabels(SHORT, fontsize=7)
+    ax_bar.axvline(0, color="black", linewidth=0.8)
+    ax_bar.set_xlabel(f"{'Spearman' if ordinal else 'Pearson'} r with label", fontsize=8)
+    ax_bar.set_title("Corr. with factuality label", fontsize=9, pad=8)
+    ax_bar.invert_yaxis()
+
+if datasets_loaded:
+    n_ds = len(datasets_loaded)
+
+    # individual per-dataset heatmaps
+    for name, (rewards, labels) in datasets_loaded.items():
+        ordinal = name in ORDINAL
+        fig = plt.figure(figsize=(22, 6))
+        _draw_heatmap_row(fig, rewards, labels, name, ordinal)
+        out = f"results/heatmap_{_slug(name)}.png"
+        plt.savefig(out, dpi=150, bbox_inches="tight")
+        plt.close()
+        print(f"Saved {out}")
+
+    # composite
+    fig = plt.figure(figsize=(22, 6 * n_ds))
+    outer = gridspec.GridSpec(n_ds, 1, hspace=0.5)
+    for row, (name, (rewards, labels)) in enumerate(datasets_loaded.items()):
+        ordinal = name in ORDINAL
+        _draw_heatmap_row(fig, rewards, labels, name, ordinal, subplot_spec=outer[row])
     plt.savefig("results/heatmaps.png", dpi=600, bbox_inches="tight")
     plt.close()
     print("Saved results/heatmaps.png")
@@ -197,34 +219,44 @@ for benchmark, sources in SCORERS.items():
         rows.sort(key=lambda x: x[1], reverse=True)
         benchmarks_data[benchmark] = rows
 
+def _draw_auroc_ax(ax, benchmark, rows):
+    labels  = [r[0] for r in rows]
+    aurocs  = [r[1] for r in rows]
+    colors  = ["#e07b39" if r[2] else "#4878cf" for r in rows]
+    x = range(len(labels))
+    ax.bar(x, aurocs, color=colors, edgecolor="white", linewidth=0.4)
+    ax.axhline(0.5, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    ax.set_ylabel("AUROC", fontsize=9)
+    ax.set_title(benchmark, fontsize=11, fontweight="bold")
+    ax.set_ylim(0.4, 1.0)
+
 if benchmarks_data:
+    from matplotlib.patches import Patch
+    legend_handles = [Patch(color="#4878cf", label="ArmoRM dimension"),
+                      Patch(color="#e07b39", label="Probe")]
+
+    # individual per-dataset
+    for benchmark, rows in benchmarks_data.items():
+        fig, ax = plt.subplots(figsize=(max(8, len(rows) * 0.5), 5))
+        _draw_auroc_ax(ax, benchmark, rows)
+        ax.legend(handles=legend_handles, fontsize=8, loc="upper right")
+        plt.tight_layout()
+        out = f"results/auroc_{_slug(benchmark)}.png"
+        plt.savefig(out, dpi=150, bbox_inches="tight")
+        plt.close()
+        print(f"Saved {out}")
+
+    # composite
     n = len(benchmarks_data)
     fig, axes = plt.subplots(1, n, figsize=(6 * n, 10), sharey=False)
     if n == 1:
         axes = [axes]
-
     for ax, (benchmark, rows) in zip(axes, benchmarks_data.items()):
-        labels  = [r[0] for r in rows]
-        aurocs  = [r[1] for r in rows]
-        colors  = ["#e07b39" if r[2] else "#4878cf" for r in rows]
-
-        y = range(len(labels))
-        ax.barh(y, aurocs, color=colors, edgecolor="white", linewidth=0.4)
-        ax.axvline(0.5, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
-        ax.set_yticks(y)
-        ax.set_yticklabels(labels, fontsize=7)
-        ax.invert_yaxis()
-        ax.set_xlabel("AUROC", fontsize=9)
-        ax.set_title(benchmark, fontsize=11, fontweight="bold")
-        ax.set_xlim(0.4, 1.0)
-
-    # legend
-    from matplotlib.patches import Patch
-    legend = [Patch(color="#4878cf", label="ArmoRM dimension"),
-              Patch(color="#e07b39", label="Probe")]
-    fig.legend(handles=legend, loc="lower center", ncol=2, fontsize=9,
+        _draw_auroc_ax(ax, benchmark, rows)
+    fig.legend(handles=legend_handles, loc="lower center", ncol=2, fontsize=9,
                bbox_to_anchor=(0.5, -0.02))
-
     plt.tight_layout()
     plt.savefig("results/auroc_bars.png", dpi=600, bbox_inches="tight")
     plt.close()
